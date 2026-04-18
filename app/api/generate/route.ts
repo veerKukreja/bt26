@@ -14,13 +14,6 @@ interface GenerateBody {
 }
 
 export async function POST(req: NextRequest) {
-  if (!process.env.ANTHROPIC_API_KEY) {
-    return new Response(
-      JSON.stringify({ error: "ANTHROPIC_API_KEY is not set" }),
-      { status: 500, headers: { "Content-Type": "application/json" } },
-    );
-  }
-
   const body = (await req.json()) as GenerateBody;
   const { prompt, currentFiles, errorContext } = body;
 

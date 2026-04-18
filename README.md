@@ -52,7 +52,7 @@ cp .env.local.example .env.local && $EDITOR .env.local
 npm install
 npm run dev
 
-# 3. Open http://localhost:3000 (redirects to a fresh /s/<uuid>)
+# 3. Open http://localhost:9998 (redirects to a fresh /s/<uuid>)
 ```
 
 ## Demo script
