@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { X, Save, RotateCcw, FileText, Folder, FolderOpen } from "lucide-react";
+import { X, Save, RotateCcw, FileText, Folder, FolderOpen, GripHorizontal } from "lucide-react";
 import type { FileMap } from "@/lib/types";
 
 interface Props {
@@ -9,6 +9,43 @@ interface Props {
   open: boolean;
   onClose: () => void;
   onSave: (next: FileMap) => void;
+}
+
+const PANEL_W = 560;
+const PANEL_H = 520;
+const POS_STORAGE_KEY = "prism:fileexplorer:pos";
+
+interface Pos { x: number; y: number }
+
+function loadPos(): Pos | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(POS_STORAGE_KEY);
+    if (!raw) return null;
+    const p = JSON.parse(raw);
+    if (typeof p?.x !== "number" || typeof p?.y !== "number") return null;
+    return p;
+  } catch { return null; }
+}
+
+function savePos(p: Pos) {
+  if (typeof window === "undefined") return;
+  try { window.localStorage.setItem(POS_STORAGE_KEY, JSON.stringify(p)); } catch { /* ignore */ }
+}
+
+function clampPos(p: Pos, w: number, h: number): Pos {
+  if (typeof window === "undefined") return p;
+  const maxX = Math.max(8, window.innerWidth - w - 8);
+  const maxY = Math.max(8, window.innerHeight - h - 8);
+  return {
+    x: Math.min(Math.max(8, p.x), maxX),
+    y: Math.min(Math.max(8, p.y), maxY),
+  };
+}
+
+function defaultPos(w: number): Pos {
+  if (typeof window === "undefined") return { x: 16, y: 64 };
+  return { x: Math.max(8, window.innerWidth - w - 16), y: 64 };
 }
 
 interface TreeNode {
@@ -59,6 +96,49 @@ export function FileExplorer({ files, open, onClose, onSave }: Props) {
   const [expandedDirs, setExpandedDirs] = useState<Set<string>>(new Set(["/"]));
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
+
+  const [pos, setPos] = useState<Pos>(() => {
+    const stored = typeof window !== "undefined" ? loadPos() : null;
+    return clampPos(stored ?? defaultPos(PANEL_W), PANEL_W, PANEL_H);
+  });
+  const dragStart = useRef<{ mx: number; my: number; px: number; py: number } | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    setPos((p) => clampPos(p, PANEL_W, PANEL_H));
+    const onResize = () => setPos((p) => clampPos(p, PANEL_W, PANEL_H));
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [open]);
+
+  useEffect(() => {
+    if (!dragStart.current) return;
+    const onMove = (e: MouseEvent) => {
+      if (!dragStart.current) return;
+      const d = dragStart.current;
+      const next = clampPos({ x: d.px + (e.clientX - d.mx), y: d.py + (e.clientY - d.my) }, PANEL_W, PANEL_H);
+      setPos(next);
+    };
+    const onUp = () => {
+      if (dragStart.current) savePos(pos);
+      dragStart.current = null;
+      document.body.style.userSelect = "";
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, [pos]);
+
+  const startDrag = (e: React.MouseEvent) => {
+    // Ignore drags that start on buttons in the header.
+    if ((e.target as HTMLElement).closest("button")) return;
+    dragStart.current = { mx: e.clientX, my: e.clientY, px: pos.x, py: pos.y };
+    document.body.style.userSelect = "none";
+    e.preventDefault();
+  };
 
   const tree = useMemo(() => buildTree(files), [files]);
 
@@ -171,11 +251,12 @@ export function FileExplorer({ files, open, onClose, onSave }: Props) {
       aria-label="Project files"
       style={{
         position: "fixed",
-        top: 64,
-        right: 16,
-        bottom: 120,
-        width: 560,
-        maxWidth: "calc(100vw - 32px)",
+        left: pos.x,
+        top: pos.y,
+        width: PANEL_W,
+        height: PANEL_H,
+        maxWidth: "calc(100vw - 16px)",
+        maxHeight: "calc(100vh - 16px)",
         zIndex: 45,
         display: "flex",
         flexDirection: "column",
@@ -191,6 +272,7 @@ export function FileExplorer({ files, open, onClose, onSave }: Props) {
       }}
     >
       <header
+        onMouseDown={startDrag}
         style={{
           display: "flex",
           alignItems: "center",
@@ -202,9 +284,15 @@ export function FileExplorer({ files, open, onClose, onSave }: Props) {
           letterSpacing: "0.08em",
           textTransform: "uppercase",
           color: "rgba(255,255,255,0.7)",
+          cursor: dragStart.current ? "grabbing" : "grab",
+          userSelect: "none",
         }}
+        title="Drag to reposition"
       >
-        <span>Files · {Object.keys(files).length}</span>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+          <GripHorizontal size={12} style={{ opacity: 0.45 }} />
+          Files · {Object.keys(files).length}
+        </span>
         <div style={{ display: "flex", gap: 6 }}>
           {isDirty && (
             <>
