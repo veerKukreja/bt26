@@ -228,3 +228,21 @@ Incoming: %s useEffect [true, [object Object]] [true] @ http://localhost:9998/_n
 [ 1829340ms] [LOG] [Fast Refresh] done in 456ms @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
 [ 1830491ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
 [ 1830542ms] [LOG] [HMR] connected @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[ 1876100ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[ 1876231ms] [LOG] [Fast Refresh] done in 233ms @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[ 1903860ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_TIMED_OUT @ https://col.csbops.io/data/sandpack:0
+[ 1981909ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[ 1982747ms] [LOG] [Fast Refresh] done in 939ms @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[ 1985929ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[ 1985990ms] [LOG] [Fast Refresh] done in 52ms @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[ 1998149ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[ 1998168ms] [LOG] [Fast Refresh] done in 58ms @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[ 2008426ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[ 2008449ms] [LOG] [Fast Refresh] done in 41ms @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[ 2013082ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[ 2013105ms] [LOG] [Fast Refresh] done in 33ms @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[ 2024472ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[ 2024487ms] [LOG] [Fast Refresh] done in 66ms @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[ 2037689ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[ 2037715ms] [LOG] [Fast Refresh] done in 38ms @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[ 2061934ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_TIMED_OUT @ https://col.csbops.io/data/sandpack:0

@@ -67,6 +67,7 @@ export function Prism({ sessionId, initialSnapshots, persistEnabled }: Props) {
   const [writeup, setWriteup] = useState<WriteUp | null>(null);
   const kickstartedRef = useRef(false);
   const [editorEvent, setEditorEvent] = useState<EditorEvent | null>(null);
+  const [interactMode, setInteractMode] = useState(false);
 
   // Hydrate user prefs + session storage on mount.
   // useLayoutEffect so hydrated=true is committed before the browser paints
@@ -512,40 +513,43 @@ export function Prism({ sessionId, initialSnapshots, persistEnabled }: Props) {
                 onReady={handleSandpackReady}
                 onError={handleSandpackError}
               />
-              {/* Click catcher overlay — left-click opens comment, right-click opens context menu. */}
-              <div
-                style={{
-                  position: "fixed",
-                  left: 0,
-                  top: 64,
-                  right: 0,
-                  bottom: 120,
-                  zIndex: 25,
-                  background: "transparent",
-                }}
-                onClick={(e) => {
-                  if (busy) return;
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setEditorEvent({
-                    event: "click",
-                    x: e.clientX,
-                    y: e.clientY,
-                    target: { selector: "", tag: "", text: "", outerHTMLExcerpt: "", rect: { top: 0, left: 0, width: 0, height: 0 } },
-                  });
-                }}
-                onContextMenu={(e) => {
-                  if (busy) return;
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setEditorEvent({
-                    event: "contextmenu",
-                    x: e.clientX,
-                    y: e.clientY,
-                    target: { selector: "", tag: "", text: "", outerHTMLExcerpt: "", rect: { top: 0, left: 0, width: 0, height: 0 } },
-                  });
-                }}
-              />
+              {/* Click catcher overlay — left-click opens comment, right-click opens context menu.
+                  Disabled when Interact mode is on so native clicks reach the iframe. */}
+              {!interactMode && (
+                <div
+                  style={{
+                    position: "fixed",
+                    left: 0,
+                    top: 64,
+                    right: 0,
+                    bottom: 120,
+                    zIndex: 25,
+                    background: "transparent",
+                  }}
+                  onClick={(e) => {
+                    if (busy) return;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setEditorEvent({
+                      event: "click",
+                      x: e.clientX,
+                      y: e.clientY,
+                      target: { selector: "", tag: "", text: "", outerHTMLExcerpt: "", rect: { top: 0, left: 0, width: 0, height: 0 } },
+                    });
+                  }}
+                  onContextMenu={(e) => {
+                    if (busy) return;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setEditorEvent({
+                      event: "contextmenu",
+                      x: e.clientX,
+                      y: e.clientY,
+                      target: { selector: "", tag: "", text: "", outerHTMLExcerpt: "", rect: { top: 0, left: 0, width: 0, height: 0 } },
+                    });
+                  }}
+                />
+              )}
             </>
           ) : (
             <div style={{ position: "absolute", inset: 0, background: "#0a0a0a" }} />
@@ -599,6 +603,8 @@ export function Prism({ sessionId, initialSnapshots, persistEnabled }: Props) {
           lang={lang}
           onLangChange={setLang}
           hasWriteup={!!writeup}
+          interactMode={interactMode}
+          onInteractChange={setInteractMode}
         />
 
         {ephemeral && <EphemeralBadge />}
@@ -653,6 +659,8 @@ interface TopBarProps {
   lang: SupportedLang;
   onLangChange: (l: SupportedLang) => void;
   hasWriteup: boolean;
+  interactMode: boolean;
+  onInteractChange: (v: boolean) => void;
 }
 
 const LANG_LABELS: Record<SupportedLang, string> = {
@@ -666,7 +674,7 @@ const LANG_LABELS: Record<SupportedLang, string> = {
   ru: "Русский",
 };
 
-function TopBar({ mode, onModeChange, ephemeral, onEphemeralChange, lang, onLangChange, hasWriteup }: TopBarProps) {
+function TopBar({ mode, onModeChange, ephemeral, onEphemeralChange, lang, onLangChange, hasWriteup, interactMode, onInteractChange }: TopBarProps) {
   const pillStyle = (active: boolean): React.CSSProperties => ({
     padding: "6px 14px",
     fontSize: 11,
@@ -735,6 +743,28 @@ function TopBar({ mode, onModeChange, ephemeral, onEphemeralChange, lang, onLang
         }}
       >
         {ephemeral ? "● Ephemeral" : "Ephemeral"}
+      </button>
+
+      <button
+        onClick={() => onInteractChange(!interactMode)}
+        aria-pressed={interactMode}
+        title={interactMode ? "Interact is ON — clicks pass through to the page. Turn off to edit." : "Interact with the generated page (buttons, forms, links work)"}
+        style={{
+          padding: "8px 14px",
+          fontSize: 11,
+          fontFamily: "ui-monospace, monospace",
+          textTransform: "uppercase",
+          letterSpacing: "0.08em",
+          background: interactMode ? "rgba(100,200,255,0.2)" : "rgba(18,18,22,0.78)",
+          backdropFilter: "blur(18px) saturate(160%)",
+          WebkitBackdropFilter: "blur(18px) saturate(160%)",
+          color: interactMode ? "#64c8ff" : "rgba(255,255,255,0.6)",
+          border: `1px solid ${interactMode ? "rgba(100,200,255,0.4)" : "rgba(255,255,255,0.12)"}`,
+          borderRadius: 999,
+          cursor: "pointer",
+        }}
+      >
+        {interactMode ? "● Interact" : "Interact"}
       </button>
 
       <select
