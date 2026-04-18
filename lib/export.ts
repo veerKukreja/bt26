@@ -82,7 +82,7 @@ export function buildZip(
   return new Promise((resolve, reject) => {
     zip(tree, { level: 6 }, (err, data) => {
       if (err) return reject(err);
-      resolve(new Blob([data], { type: "application/zip" }));
+      resolve(new Blob([data as BlobPart], { type: "application/zip" }));
     });
   });
 }
