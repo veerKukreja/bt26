@@ -79,9 +79,11 @@ export function PromptBar({
   const [methodologyOpen, setMethodologyOpen] = useState(false);
 
   const versionsRef = useRef<HTMLButtonElement>(null);
+  const versionsPanelRef = useRef<HTMLDivElement>(null);
   const [versionsOpen, setVersionsOpen] = useState(false);
 
   const exportRef = useRef<HTMLButtonElement>(null);
+  const exportPanelRef = useRef<HTMLDivElement>(null);
   const [exportOpen, setExportOpen] = useState(false);
   const [exportBusy, setExportBusy] = useState<BusyKey>(null);
   const [exportDone, setExportDone] = useState<BusyKey>(null);
@@ -105,15 +107,19 @@ export function PromptBar({
     if (!exportOpen && !versionsOpen) return;
     const onClick = (e: MouseEvent) => {
       const target = e.target as Node;
-      if (exportRef.current && !exportRef.current.contains(target)) {
-        setExportOpen(false);
-      }
-      if (versionsRef.current && !versionsRef.current.contains(target)) {
-        setVersionsOpen(false);
-      }
+      const insideExport =
+        (exportRef.current && exportRef.current.contains(target)) ||
+        (exportPanelRef.current && exportPanelRef.current.contains(target));
+      const insideVersions =
+        (versionsRef.current && versionsRef.current.contains(target)) ||
+        (versionsPanelRef.current && versionsPanelRef.current.contains(target));
+      if (!insideExport) setExportOpen(false);
+      if (!insideVersions) setVersionsOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
+        if (exportOpen) exportRef.current?.focus();
+        if (versionsOpen) versionsRef.current?.focus();
         setExportOpen(false);
         setVersionsOpen(false);
       }
@@ -286,6 +292,9 @@ export function PromptBar({
     >
       {statusLabel && (
         <div
+          role="status"
+          aria-live={status.kind === "error" ? "assertive" : "polite"}
+          aria-atomic="true"
           style={{
             textAlign: "center",
             marginBottom: 10,
@@ -345,6 +354,9 @@ export function PromptBar({
               ref={trackerRef}
               onClick={() => setMethodologyOpen((o) => !o)}
               aria-label="Environmental usage — click for methodology"
+              aria-haspopup="dialog"
+              aria-expanded={methodologyOpen}
+              aria-describedby={methodologyOpen ? "env-methodology" : undefined}
               style={pillBtn({ muted: true })}
             >
               {formatNumber(energyWh)} Wh · {formatNumber(waterMl)} mL
@@ -360,7 +372,9 @@ export function PromptBar({
               setVersionsOpen((o) => !o);
               setExportOpen(false);
             }}
-            aria-label="Versions"
+            aria-label={`Versions — currently v${currentIndex + 1} of ${snapshots.length}`}
+            aria-haspopup="menu"
+            aria-expanded={versionsOpen}
             style={pillBtn({ active: versionsOpen })}
           >
             <Layers size={12} />
@@ -401,6 +415,8 @@ export function PromptBar({
           }}
           disabled={disabled && !exportOpen}
           aria-label="Export"
+          aria-haspopup="menu"
+          aria-expanded={exportOpen}
           style={iconBtn({ active: exportOpen })}
         >
           <Download size={16} />
@@ -410,7 +426,13 @@ export function PromptBar({
           type="button"
           onClick={handleFork}
           disabled={disabled || forkState !== "idle"}
-          aria-label="Fork"
+          aria-label={
+            forkState === "forking"
+              ? "Forking…"
+              : forkState === "copied"
+                ? "Fork URL copied"
+                : "Fork to new URL"
+          }
           style={{
             ...iconBtn(),
             color: forkState === "copied" ? "#8eff8e" : "rgba(255,255,255,0.75)",
@@ -468,6 +490,9 @@ export function PromptBar({
           onRequestClose={() => setMethodologyOpen(false)}
         >
           <div
+            id="env-methodology"
+            role="dialog"
+            aria-label="Environmental usage methodology"
             style={{
               minWidth: 280,
               color: "rgba(255,255,255,0.92)",
@@ -531,6 +556,9 @@ export function PromptBar({
       {/* Versions dropdown */}
       {versionsOpen && snapshots.length > 1 && (
         <div
+          ref={versionsPanelRef}
+          role="menu"
+          aria-label="Session versions"
           style={{
             position: "absolute",
             bottom: "calc(100% + 10px)",
@@ -560,9 +588,11 @@ export function PromptBar({
               >
                 <button
                   type="button"
+                  role="menuitem"
                   onClick={() => {
                     onScrub(i);
                     setVersionsOpen(false);
+                    versionsRef.current?.focus();
                   }}
                   style={{
                     flex: 1,
@@ -602,7 +632,7 @@ export function PromptBar({
                     onClick={() => doZip(snap.files, snapSummary, snap.id)}
                     title="Download .zip"
                     style={{
-                      width: 26, height: 26, border: "none", background: "transparent",
+                      width: 32, height: 32, border: "none", background: "transparent",
                       color: "rgba(255,255,255,0.6)", cursor: "pointer", borderRadius: 4,
                       display: "inline-flex", alignItems: "center", justifyContent: "center",
                     }}
@@ -614,7 +644,7 @@ export function PromptBar({
                     onClick={() => doHtml(snap.files, snapSummary, snap.id)}
                     title="Download .html"
                     style={{
-                      width: 26, height: 26, border: "none", background: "transparent",
+                      width: 32, height: 32, border: "none", background: "transparent",
                       color: "rgba(255,255,255,0.6)", cursor: "pointer", borderRadius: 4,
                       display: "inline-flex", alignItems: "center", justifyContent: "center",
                     }}
@@ -626,7 +656,7 @@ export function PromptBar({
                     onClick={() => doCsb(snap.files, snapSummary, snap.id)}
                     title="Copy CodeSandbox link"
                     style={{
-                      width: 26, height: 26, border: "none", background: "transparent",
+                      width: 32, height: 32, border: "none", background: "transparent",
                       color: "rgba(255,255,255,0.6)", cursor: "pointer", borderRadius: 4,
                       display: "inline-flex", alignItems: "center", justifyContent: "center",
                     }}
@@ -643,6 +673,9 @@ export function PromptBar({
       {/* Export dropdown */}
       {exportOpen && (
         <div
+          ref={exportPanelRef}
+          role="menu"
+          aria-label="Export current snapshot"
           style={{
             position: "absolute",
             bottom: "calc(100% + 10px)",
@@ -659,6 +692,7 @@ export function PromptBar({
         >
           <button
             type="button"
+            role="menuitem"
             onClick={() => doZip(currentFiles, activeSummary, activeId)}
             disabled={exportBusy !== null}
             style={dropdownItemStyle(exportBusy === "zip")}
@@ -668,6 +702,7 @@ export function PromptBar({
           </button>
           <button
             type="button"
+            role="menuitem"
             onClick={() => doHtml(currentFiles, activeSummary, activeId)}
             disabled={exportBusy !== null}
             style={dropdownItemStyle(exportBusy === "html")}
@@ -677,6 +712,7 @@ export function PromptBar({
           </button>
           <button
             type="button"
+            role="menuitem"
             onClick={() => doCsb(currentFiles, activeSummary, activeId)}
             disabled={exportBusy !== null}
             style={dropdownItemStyle(exportBusy === "csb" || exportDone === "csb")}
@@ -696,6 +732,8 @@ export function PromptBar({
       {/* Toast */}
       {toast && (
         <div
+          role="alert"
+          aria-live="assertive"
           style={{
             position: "fixed",
             bottom: 120,
