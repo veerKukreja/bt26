@@ -520,7 +520,7 @@ export function PromptBar({
           );
         })()}
 
-        {snapshots.length > 1 && (
+        {(snapshots.length > 1 || (snapshots.length === 1 && snapshots[0]?.id !== "origin")) && (
           <button
             type="button"
             ref={versionsRef}
@@ -773,7 +773,7 @@ export function PromptBar({
       )}
 
       {/* Versions dropdown */}
-      {versionsOpen && snapshots.length > 1 && (
+      {versionsOpen && snapshots.length >= 1 && (
         <div
           ref={versionsPanelRef}
           role="menu"

@@ -86,12 +86,11 @@ export function Prism({ sessionId, initialSnapshots, persistEnabled }: Props) {
     const persistedMode = storage.getItem(MODE_KEY(sessionId));
     if (persistedMode === "brainstorm" || persistedMode === "build") setMode(persistedMode);
 
-    if (!persistedEphemeral) {
-      const local = readJson<Snapshot[]>(LS_KEY(sessionId), window.localStorage);
-      if (local && Array.isArray(local) && local.length > 0) {
-        setSnapshots(local);
-        setCurrentIndex(local.length - 1);
-      }
+    const snapshotSource: Storage = persistedEphemeral ? window.sessionStorage : window.localStorage;
+    const local = readJson<Snapshot[]>(LS_KEY(sessionId), snapshotSource);
+    if (local && Array.isArray(local) && local.length > 0) {
+      setSnapshots(local);
+      setCurrentIndex(local.length - 1);
     }
 
     const refs = readJson<FeatureInventory[]>(REFS_KEY(sessionId), storage);
@@ -102,13 +101,15 @@ export function Prism({ sessionId, initialSnapshots, persistEnabled }: Props) {
     setHydrated(true);
   }, [sessionId, hydrated]);
 
-  // Keep snapshots writer gated by ephemeral.
+  // Snapshots persistence:
+  //   - ephemeral → sessionStorage (survives tab, not browser restart)
+  //   - normal   → localStorage
   useEffect(() => {
-    if (!hydrated) return;
-    if (ephemeral) return;
-    if (snapshots.length > 1 || snapshots[0]?.id !== "origin") {
-      writeJson(LS_KEY(sessionId), snapshots, window.localStorage);
-    }
+    if (!hydrated || typeof window === "undefined") return;
+    const hasContent = snapshots.length > 1 || snapshots[0]?.id !== "origin";
+    if (!hasContent) return;
+    const storage = ephemeral ? window.sessionStorage : window.localStorage;
+    writeJson(LS_KEY(sessionId), snapshots, storage);
   }, [sessionId, snapshots, hydrated, ephemeral]);
 
   // Refs + writeup + mode persistence honors ephemeral choice.
@@ -386,9 +387,8 @@ export function Prism({ sessionId, initialSnapshots, persistEnabled }: Props) {
       summary: parentSnapshot?.summary || "Forked",
       files: currentFiles,
     };
-    if (!ephemeral) {
-      writeJson(LS_KEY(newSessionId), [seedSnapshot], window.localStorage);
-    }
+    const forkStorage = ephemeral ? window.sessionStorage : window.localStorage;
+    writeJson(LS_KEY(newSessionId), [seedSnapshot], forkStorage);
 
     if (persistEnabled && !ephemeral) {
       try {
@@ -423,7 +423,10 @@ export function Prism({ sessionId, initialSnapshots, persistEnabled }: Props) {
   );
 
   const busy = status.kind === "generating" || status.kind === "fixing";
-  const onBlankCanvas = snapshots.length <= 1 && status.kind === "idle" && mode === "build";
+  const onBlankCanvas =
+    status.kind === "idle" &&
+    mode === "build" &&
+    (snapshots.length === 0 || (snapshots.length === 1 && snapshots[0]?.id === "origin"));
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
