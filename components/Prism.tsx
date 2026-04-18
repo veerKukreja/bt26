@@ -465,12 +465,16 @@ export function Prism({ sessionId, initialSnapshots, persistEnabled }: Props) {
         }}
       >
         {mode === "build" ? (
-          <Preview
-            versionKey={`v-${versionKey}`}
-            files={currentFiles}
-            onReady={handleSandpackReady}
-            onError={handleSandpackError}
-          />
+          hydrated ? (
+            <Preview
+              versionKey={`v-${versionKey}`}
+              files={currentFiles}
+              onReady={handleSandpackReady}
+              onError={handleSandpackError}
+            />
+          ) : (
+            <div style={{ position: "absolute", inset: 0, background: "#0a0a0a" }} />
+          )
         ) : (
           <div style={{ position: "absolute", inset: 0, paddingBottom: 120 }}>
             <BrainstormPane
