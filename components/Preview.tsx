@@ -68,8 +68,27 @@ if (!rootEl) {
   document.body.innerHTML = '<div style="padding:24px;font-family:ui-monospace,monospace;color:#b33">[Prism] No #root element found in host HTML.</div>';
 } else {
   try {
-    createRoot(rootEl).render(<App />);
-    try { console.log("[prism] render scheduled"); } catch (_) {}
+    createRoot(rootEl).render(
+      <div style={{ minHeight: "100vh", background: "#fafafa", position: "relative" }}>
+        <div style={{
+          position: "fixed",
+          top: 8,
+          right: 8,
+          padding: "4px 10px",
+          background: "rgba(255, 235, 0, 0.9)",
+          color: "#000",
+          fontFamily: "ui-monospace, monospace",
+          fontSize: 10,
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          borderRadius: 4,
+          zIndex: 9999,
+          pointerEvents: "none",
+        }}>prism: App {typeof App}</div>
+        <App />
+      </div>
+    );
+    try { console.log("[prism] render scheduled, App typeof:", typeof App); } catch (_) {}
   } catch (e) {
     try { console.error("[prism] createRoot failed:", e); } catch (_) {}
     rootEl.innerHTML = '<div style="padding:24px;font-family:ui-monospace,monospace;color:#b33">[Prism] createRoot failed: ' + String(e) + '</div>';
