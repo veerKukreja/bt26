@@ -234,13 +234,19 @@ export function PromptBar({
     const rec = new Ctor();
     rec.lang = speechLangCode(lang);
     rec.interimResults = true;
-    rec.continuous = false;
+    rec.continuous = true;
     let silenceTimer: ReturnType<typeof setTimeout> | null = null;
-    const scheduleStop = () => {
+    let sawFirstResult = false;
+    let initialGrace: ReturnType<typeof setTimeout> | null = null;
+    const scheduleStop = (ms: number) => {
       if (silenceTimer) clearTimeout(silenceTimer);
-      silenceTimer = setTimeout(() => rec.stop(), 1500);
+      silenceTimer = setTimeout(() => {
+        try { rec.stop(); } catch { /* already stopped */ }
+      }, ms);
     };
     rec.onresult = (e: SpeechRecognitionEventLike) => {
+      if (initialGrace) { clearTimeout(initialGrace); initialGrace = null; }
+      sawFirstResult = true;
       let interim = "";
       let final = "";
       for (let i = e.resultIndex; i < e.results.length; i++) {
@@ -252,11 +258,12 @@ export function PromptBar({
         const base = prev.replace(/[\u0001]?$/, "");
         return final ? `${base}${final}`.trim() : `${base} ${interim}`.trim();
       });
-      scheduleStop();
+      scheduleStop(1500);
     };
     rec.onerror = () => setListening(false);
     rec.onend = () => {
       if (silenceTimer) clearTimeout(silenceTimer);
+      if (initialGrace) clearTimeout(initialGrace);
       setListening(false);
       recognitionRef.current = null;
     };
@@ -264,7 +271,12 @@ export function PromptBar({
     try {
       rec.start();
       setListening(true);
-      scheduleStop();
+      // Give up to 15s of initial silence before auto-stopping if the user never speaks.
+      initialGrace = setTimeout(() => {
+        if (!sawFirstResult) {
+          try { rec.stop(); } catch { /* ignore */ }
+        }
+      }, 15_000);
     } catch {
       setListening(false);
     }
