@@ -175,6 +175,17 @@ try {
 }
 `;
 
+const PRISM_INDEX_HTML = `<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Prism</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+  </head>
+  <body style="margin:0"><div id="root"></div></body>
+</html>
+`;
+
 const PRISM_PACKAGE_JSON = JSON.stringify(
   {
     name: "prism-app",
@@ -204,6 +215,9 @@ export function Preview({ files, versionKey, onError, onReady }: PreviewProps) {
   // produce a package.json without main, and the bundler falls back to
   // /src/index.tsx which our installer is NOT in).
   sandpackFiles["/package.json"] = { code: PRISM_PACKAGE_JSON };
+  // Lock down the host HTML so <div id="root"> always exists — otherwise
+  // my injected index.tsx's rootEl is null and nothing mounts.
+  sandpackFiles["/public/index.html"] = { code: PRISM_INDEX_HTML };
 
   return (
     <SandpackProvider
