@@ -5,6 +5,7 @@ import { Loader2, RefreshCw, Copy, Check, FileText, GitBranch } from "lucide-rea
 import { streamBrainstorm } from "@/lib/brainstorm-client";
 import { copyToClipboard } from "@/lib/export";
 import { writeupToMarkdown, writeupToGithubIssue } from "@/lib/writeup-export";
+import { ProjectStructureView } from "./ProjectStructure";
 import type { FeatureInventory, WriteUp } from "@/lib/types";
 
 export interface WriteupPanelProps {
@@ -20,6 +21,7 @@ const SECTION_KEYS: Array<{ key: keyof WriteUp; label: string }> = [
   { key: "valueProp", label: "Value proposition" },
   { key: "features", label: "Features" },
   { key: "pages", label: "Pages" },
+  { key: "projectStructure", label: "Project structure" },
   { key: "copyDirection", label: "Copy direction" },
   { key: "visualDirection", label: "Visual direction" },
   { key: "risks", label: "Risks" },
@@ -251,6 +253,15 @@ export function WriteupPanel({ writeup, onChange, references }: WriteupPanelProp
               </div>
             ))}
           </SectionBlock>
+          {writeup.projectStructure && (
+            <SectionBlock
+              label="Project structure"
+              regen={() => regenSection("projectStructure")}
+              busy={busy === "projectStructure"}
+            >
+              <ProjectStructureView structure={writeup.projectStructure} />
+            </SectionBlock>
+          )}
           <EditableRow
             label="Copy direction"
             multiline

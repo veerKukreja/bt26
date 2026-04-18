@@ -24,6 +24,7 @@ Fields:
 - \`valueProp\`: a single sentence of the form "For X who Y, we Z." — crisp, no hedging.
 - \`features\`: MoSCoW split. \`mustHave\` = 3–6 items, table-stakes for the first working version. \`shouldHave\` = 2–5 items, high-value but deferrable. \`couldHave\` = 1–4 items, delight/growth. Each feature is a short noun phrase, not a sentence.
 - \`pages\`: 2–5 pages/screens. Each has \`name\` (e.g. "Landing", "Plant detail"), \`purpose\` (one sentence), \`keyElements\` (2–5 short strings naming UI pieces — "hero with CTA", "stats row", "add-plant button").
+- \`projectStructure\`: a realistic file/folder tree the developer will produce. \`entryPoint\` is the main file path (e.g. "/App.tsx" or "/index.tsx"). \`tree\` is an array of \`ProjectTreeNode\` objects. Each node has \`name\` (file or folder label), \`kind\` (one of "file" | "directory" | "route" | "component"), optional \`purpose\` (one short phrase saying what it does), and optional \`children\` (nested nodes). Keep the tree shallow and realistic for a small React app: typically 6–12 leaf nodes across at most 2 levels. Don't invent elaborate monorepo layouts; a flat \`/App.tsx\`, \`/components/*\`, \`/lib/*\` shape is usually right.
 - \`copyDirection\`: 1–2 sentences describing voice/tone ("playful and direct, second-person, no jargon").
 - \`visualDirection\`: 1–2 sentences describing look/feel ("soft neutrals, generous whitespace, hand-drawn iconography").
 - \`risks\`: 2–4 short strings, each a real risk to shipping or adoption (not filler like "competition").
@@ -90,6 +91,19 @@ export const WRITE_WRITEUP_TOOL = {
           required: ["name", "purpose", "keyElements"],
         },
       },
+      projectStructure: {
+        type: "object",
+        properties: {
+          entryPoint: { type: "string" },
+          tree: {
+            type: "array",
+            items: {
+              $ref: "#/$defs/treeNode",
+            },
+          },
+        },
+        required: ["entryPoint", "tree"],
+      },
       copyDirection: { type: "string" },
       visualDirection: { type: "string" },
       risks: { type: "array", items: { type: "string" } },
@@ -101,10 +115,29 @@ export const WRITE_WRITEUP_TOOL = {
       "valueProp",
       "features",
       "pages",
+      "projectStructure",
       "copyDirection",
       "visualDirection",
       "risks",
     ],
+    $defs: {
+      treeNode: {
+        type: "object" as const,
+        properties: {
+          name: { type: "string" },
+          kind: {
+            type: "string",
+            enum: ["file", "directory", "route", "component"],
+          },
+          purpose: { type: "string" },
+          children: {
+            type: "array",
+            items: { $ref: "#/$defs/treeNode" },
+          },
+        },
+        required: ["name", "kind"],
+      },
+    },
   },
 };
 
@@ -115,6 +148,7 @@ export const WRITEUP_SECTION_KEYS = [
   "valueProp",
   "features",
   "pages",
+  "projectStructure",
   "copyDirection",
   "visualDirection",
   "risks",

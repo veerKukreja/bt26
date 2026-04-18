@@ -167,7 +167,7 @@ export function ReferencesPanel({ references, onChange }: ReferencesPanelProps) 
           type="url"
           value={urlInput}
           onChange={(e) => setUrlInput(e.target.value)}
-          placeholder="https://..."
+          placeholder="https:// — or paste a Figma / GitHub link"
           disabled={busy !== null}
           onKeyDown={(e) => {
             if (e.key === "Enter") {

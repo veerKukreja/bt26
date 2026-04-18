@@ -42,6 +42,18 @@ export interface FeatureInventory {
   };
 }
 
+export type ProjectTreeNode = {
+  name: string;
+  kind: "file" | "directory" | "route" | "component";
+  purpose?: string;
+  children?: ProjectTreeNode[];
+};
+
+export type ProjectStructure = {
+  entryPoint: string;
+  tree: ProjectTreeNode[];
+};
+
 export type WriteUp = {
   title: string;
   problem: string;
@@ -49,6 +61,7 @@ export type WriteUp = {
   valueProp: string;
   features: { mustHave: string[]; shouldHave: string[]; couldHave: string[] };
   pages: Array<{ name: string; purpose: string; keyElements: string[] }>;
+  projectStructure?: ProjectStructure;
   copyDirection: string;
   visualDirection: string;
   risks: string[];

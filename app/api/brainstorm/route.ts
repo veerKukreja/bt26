@@ -8,7 +8,7 @@ import {
   type FeatureInventoryLike,
   type WriteUpSectionKey,
 } from "@/lib/brainstorm-prompt";
-import type { WriteUp } from "@/lib/types";
+import type { ProjectStructure, ProjectTreeNode, WriteUp } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -23,13 +23,6 @@ interface BrainstormBody {
 }
 
 export async function POST(req: NextRequest) {
-  if (!process.env.ANTHROPIC_API_KEY) {
-    return new Response(
-      JSON.stringify({ error: "ANTHROPIC_API_KEY is not set" }),
-      { status: 500, headers: { "Content-Type": "application/json" } },
-    );
-  }
-
   let body: BrainstormBody;
   try {
     body = (await req.json()) as BrainstormBody;
@@ -227,6 +220,8 @@ function validateWriteUp(p: Partial<WriteUp>): WriteUp {
     mustStr(s, `risks[${i}]`),
   );
 
+  const projectStructure = coerceProjectStructure(p.projectStructure);
+
   return {
     title,
     problem,
@@ -234,10 +229,50 @@ function validateWriteUp(p: Partial<WriteUp>): WriteUp {
     valueProp,
     features: { mustHave, shouldHave, couldHave },
     pages,
+    ...(projectStructure ? { projectStructure } : {}),
     copyDirection,
     visualDirection,
     risks,
   };
+}
+
+function coerceTreeNode(raw: unknown, depth = 0): ProjectTreeNode | null {
+  if (!raw || typeof raw !== "object" || depth > 3) return null;
+  const r = raw as {
+    name?: unknown;
+    kind?: unknown;
+    purpose?: unknown;
+    children?: unknown;
+  };
+  if (typeof r.name !== "string" || !r.name.trim()) return null;
+  const kind: ProjectTreeNode["kind"] =
+    r.kind === "directory" || r.kind === "route" || r.kind === "component"
+      ? r.kind
+      : "file";
+  const node: ProjectTreeNode = { name: r.name, kind };
+  if (typeof r.purpose === "string" && r.purpose.trim()) node.purpose = r.purpose;
+  if (Array.isArray(r.children)) {
+    const children = r.children
+      .map((c) => coerceTreeNode(c, depth + 1))
+      .filter((c): c is ProjectTreeNode => c !== null);
+    if (children.length > 0) node.children = children;
+  }
+  return node;
+}
+
+function coerceProjectStructure(raw: unknown): ProjectStructure | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as { entryPoint?: unknown; tree?: unknown };
+  const entryPoint =
+    typeof r.entryPoint === "string" && r.entryPoint.trim()
+      ? r.entryPoint
+      : "/App.tsx";
+  if (!Array.isArray(r.tree)) return null;
+  const tree = r.tree
+    .map((n) => coerceTreeNode(n))
+    .filter((n): n is ProjectTreeNode => n !== null);
+  if (tree.length === 0) return null;
+  return { entryPoint, tree };
 }
 
 function applySection(

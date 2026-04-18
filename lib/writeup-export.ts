@@ -1,4 +1,25 @@
-import type { WriteUp } from "./types";
+import type { ProjectTreeNode, WriteUp } from "./types";
+
+function treeToMarkdown(nodes: ProjectTreeNode[], depth = 0): string[] {
+  const lines: string[] = [];
+  for (const n of nodes) {
+    const indent = "  ".repeat(depth);
+    const tag =
+      n.kind === "directory"
+        ? "📁"
+        : n.kind === "route"
+          ? "🔀"
+          : n.kind === "component"
+            ? "🧩"
+            : "📄";
+    const purpose = n.purpose ? ` — *${n.purpose}*` : "";
+    lines.push(`${indent}- ${tag} \`${n.name}\`${purpose}`);
+    if (n.children && n.children.length > 0) {
+      lines.push(...treeToMarkdown(n.children, depth + 1));
+    }
+  }
+  return lines;
+}
 
 export function writeupToMarkdown(w: WriteUp): string {
   const lines: string[] = [];
@@ -42,6 +63,13 @@ export function writeupToMarkdown(w: WriteUp): string {
       }
       lines.push("");
     }
+  }
+  if (w.projectStructure && w.projectStructure.tree.length > 0) {
+    lines.push("## Project structure");
+    lines.push(`Entry point: \`${w.projectStructure.entryPoint}\``);
+    lines.push("");
+    lines.push(...treeToMarkdown(w.projectStructure.tree));
+    lines.push("");
   }
   lines.push("## Copy direction");
   lines.push(w.copyDirection);

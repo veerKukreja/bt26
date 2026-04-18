@@ -1,5 +1,8 @@
 import { NextRequest } from "next/server";
+import * as cheerio from "cheerio";
 import { getAnthropic, MODEL } from "@/lib/anthropic";
+import { gatherContext } from "@/lib/prism-core";
+import { getAllClients } from "@/lib/mcp-clients";
 import type { FeatureInventory } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -41,47 +44,158 @@ function isValidBody(v: unknown): v is Body {
   return false;
 }
 
-function stripHtmlToText(html: string): { text: string; title: string | null } {
-  const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
-  const title = titleMatch ? titleMatch[1].trim() : null;
-  const noScript = html
-    .replace(/<script[\s\S]*?<\/script>/gi, " ")
-    .replace(/<style[\s\S]*?<\/style>/gi, " ")
-    .replace(/<noscript[\s\S]*?<\/noscript>/gi, " ")
-    .replace(/<!--[\s\S]*?-->/g, " ");
-  const text = noScript
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/\s+/g, " ")
-    .trim();
-  return { text, title };
+interface PageScrape {
+  title: string | null;
+  description: string | null;
+  ogImage: string | null;
+  ogDescription: string | null;
+  headings: string[];
+  bodyText: string;
+  palette: string[];
+  imageUrls: string[];
+  linkCount: number;
 }
 
-function extractImageUrls(html: string, baseUrl: string): string[] {
-  const urls: string[] = [];
-  const seen = new Set<string>();
-  const re = /<img[^>]+src=["']([^"']+)["']/gi;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(html)) !== null) {
-    const src = m[1];
-    if (!src) continue;
-    if (src.startsWith("data:")) continue;
+function scrapeHtml(html: string, baseUrl: string): PageScrape {
+  const $ = cheerio.load(html);
+
+  const title = $("title").first().text().trim() || $("meta[property='og:title']").attr("content") || null;
+  const description =
+    $("meta[name='description']").attr("content") ||
+    $("meta[property='og:description']").attr("content") ||
+    null;
+  const ogDescription = $("meta[property='og:description']").attr("content") ?? null;
+
+  let ogImage: string | null = null;
+  const ogImageSrc =
+    $("meta[property='og:image']").attr("content") ||
+    $("meta[name='twitter:image']").attr("content") ||
+    null;
+  if (ogImageSrc) {
     try {
-      const resolved = new URL(src, baseUrl).toString();
-      if (seen.has(resolved)) continue;
-      seen.add(resolved);
-      urls.push(resolved);
-      if (urls.length >= MAX_IMAGES) break;
+      ogImage = new URL(ogImageSrc, baseUrl).toString();
     } catch {
       /* skip */
     }
   }
-  return urls;
+
+  const headings: string[] = [];
+  $("h1, h2, h3").each((_, el) => {
+    const text = $(el).text().trim().replace(/\s+/g, " ");
+    if (text && text.length < 200 && headings.length < 30) headings.push(text);
+  });
+
+  $("script, style, noscript, svg").remove();
+  const bodyText = $("body").text().replace(/\s+/g, " ").trim();
+
+  const palette = extractPalette(html);
+
+  const seen = new Set<string>();
+  const imageUrls: string[] = [];
+  if (ogImage) {
+    imageUrls.push(ogImage);
+    seen.add(ogImage);
+  }
+  $("img").each((_, el) => {
+    const src = $(el).attr("src");
+    if (!src || src.startsWith("data:")) return;
+    try {
+      const resolved = new URL(src, baseUrl).toString();
+      if (seen.has(resolved)) return;
+      seen.add(resolved);
+      imageUrls.push(resolved);
+    } catch {
+      /* skip */
+    }
+  });
+
+  const linkCount = $("a[href]").length;
+
+  return {
+    title,
+    description,
+    ogImage,
+    ogDescription,
+    headings,
+    bodyText,
+    palette,
+    imageUrls: imageUrls.slice(0, MAX_IMAGES),
+    linkCount,
+  };
+}
+
+type EnrichedHost = "figma" | "github" | null;
+
+function classifyHost(url: string): EnrichedHost {
+  try {
+    const u = new URL(url);
+    const h = u.hostname.toLowerCase();
+    if (h === "figma.com" || h.endsWith(".figma.com")) return "figma";
+    if (h === "github.com" || h.endsWith(".github.com")) return "github";
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function pickMcpServer(
+  kind: "figma" | "github",
+  available: Record<string, unknown>,
+): string | null {
+  const keys = Object.keys(available);
+  const lowered = keys.map((k) => ({ name: k, lower: k.toLowerCase() }));
+  const match = lowered.find((k) => k.lower.includes(kind));
+  return match?.name ?? null;
+}
+
+async function enrichViaMcp(
+  url: string,
+  kind: "figma" | "github",
+): Promise<string | null> {
+  let clients: Awaited<ReturnType<typeof getAllClients>>;
+  try {
+    clients = await getAllClients();
+  } catch {
+    return null;
+  }
+  const serverName = pickMcpServer(kind, clients);
+  if (!serverName) return null;
+  const client = clients[serverName];
+  try {
+    const prompt =
+      kind === "figma"
+        ? `Fetch the Figma file at ${url}. Return its title, node hierarchy, visible text, colors, typography, and any design tokens you can extract. Be thorough — a downstream analyst needs to catalog features and design language.`
+        : `Fetch the GitHub repository at ${url}. Return the README, package.json contents, top-level folder structure, and the repository description. Be thorough — a downstream analyst needs to catalog features.`;
+    const result = await gatherContext({
+      client: getAnthropic(),
+      model: MODEL,
+      userPrompt: prompt,
+      mcpClients: { [serverName]: client },
+      maxToolCalls: 4,
+      timeoutMs: 20_000,
+    });
+    if (result.summary && result.toolCallCount > 0 && !result.timedOut) {
+      return result.summary;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function extractPalette(html: string): string[] {
+  const hexSeen = new Set<string>();
+  const palette: string[] = [];
+  const hexRe = /#([0-9a-f]{3}|[0-9a-f]{6})\b/gi;
+  let m: RegExpExecArray | null;
+  while ((m = hexRe.exec(html)) !== null) {
+    const hex = `#${m[1].toLowerCase()}`;
+    if (hexSeen.has(hex)) continue;
+    hexSeen.add(hex);
+    palette.push(hex);
+    if (palette.length >= 12) break;
+  }
+  return palette;
 }
 
 type Base64Image = {
@@ -233,7 +347,9 @@ function coerceInventory(raw: unknown): FeatureInventory {
   };
 }
 
-async function buildUrlContent(url: string): Promise<ContentBlock[] | { error: string }> {
+async function buildUrlContent(
+  url: string,
+): Promise<{ blocks: ContentBlock[]; scrape: PageScrape } | { error: string }> {
   let html: string;
   try {
     const ctrl = new AbortController();
@@ -252,20 +368,42 @@ async function buildUrlContent(url: string): Promise<ContentBlock[] | { error: s
     return { error: `Upstream fetch failed: ${(e as Error).message}` };
   }
 
-  const { text, title } = stripHtmlToText(html);
-  const truncated = text.slice(0, MAX_PAGE_TEXT_CHARS);
-  const header = `Source URL: ${url}\nPage title: ${title ?? "(none)"}\n\nPage text (truncated to ${MAX_PAGE_TEXT_CHARS} chars):\n${truncated}`;
+  const scrape = scrapeHtml(html, url);
+  const truncatedBody = scrape.bodyText.slice(0, MAX_PAGE_TEXT_CHARS);
 
-  const blocks: ContentBlock[] = [{ type: "text", text: header }];
+  const headerLines: string[] = [
+    `Source URL: ${url}`,
+    `Page title: ${scrape.title ?? "(none)"}`,
+  ];
+  if (scrape.description) headerLines.push(`Meta description: ${scrape.description}`);
+  if (scrape.headings.length > 0) {
+    headerLines.push(`Headings:\n- ${scrape.headings.slice(0, 20).join("\n- ")}`);
+  }
+  if (scrape.palette.length > 0) {
+    headerLines.push(`Hex colors found in source: ${scrape.palette.join(", ")}`);
+  }
+  headerLines.push(`Link count: ${scrape.linkCount}`);
+  headerLines.push(
+    `\nPage body text (truncated to ${MAX_PAGE_TEXT_CHARS} chars):\n${truncatedBody}`,
+  );
 
-  const imageUrls = extractImageUrls(html, url);
-  if (imageUrls.length > 0) {
-    const fetched = await Promise.all(imageUrls.slice(0, MAX_IMAGES).map(fetchAsBase64Image));
+  if (truncatedBody.length < 200) {
+    headerLines.push(
+      "\nNOTE: Body text is very short. This may be a JavaScript-rendered SPA that ships little server-side HTML. Analysis will rely primarily on meta tags and any og:image.",
+    );
+  }
+
+  const blocks: ContentBlock[] = [{ type: "text", text: headerLines.join("\n") }];
+
+  if (scrape.imageUrls.length > 0) {
+    const fetched = await Promise.all(
+      scrape.imageUrls.slice(0, MAX_IMAGES).map(fetchAsBase64Image),
+    );
     const attached: Base64Image[] = fetched.filter((x): x is Base64Image => x !== null);
     if (attached.length > 0) {
       blocks.push({
         type: "text",
-        text: `Inline images extracted from the page (${attached.length}):`,
+        text: `Images from the page (${attached.length}) — the first is the og:image if one was declared:`,
       });
       for (const img of attached) {
         blocks.push({
@@ -275,7 +413,7 @@ async function buildUrlContent(url: string): Promise<ContentBlock[] | { error: s
       }
     }
   }
-  return blocks;
+  return { blocks, scrape };
 }
 
 function buildImageContent(images: string[]): ContentBlock[] | { error: string } {
@@ -329,15 +467,45 @@ export async function POST(req: NextRequest) {
   }
 
   let content: ContentBlock[];
+  let urlScrape: PageScrape | null = null;
+  let enrichedKind: EnrichedHost = null;
   if (raw.kind === "url") {
-    const built = await buildUrlContent(raw.url);
-    if ("error" in built) {
-      return new Response(JSON.stringify({ error: built.error }), {
-        status: 502,
-        headers: { "Content-Type": "application/json" },
-      });
+    const host = classifyHost(raw.url);
+    if (host) {
+      const enriched = await enrichViaMcp(raw.url, host);
+      if (enriched) {
+        enrichedKind = host;
+        const header =
+          host === "figma"
+            ? `Source URL: ${raw.url}\n\nThis is a Figma file. The following data was fetched directly from Figma via MCP and is authoritative over any guesses:\n\n${enriched}`
+            : `Source URL: ${raw.url}\n\nThis is a GitHub repository. The following data was fetched directly from GitHub via MCP and is authoritative over any guesses:\n\n${enriched}`;
+        content = [{ type: "text", text: header }];
+      } else {
+        const built = await buildUrlContent(raw.url);
+        if ("error" in built) {
+          return new Response(JSON.stringify({ error: built.error }), {
+            status: 502,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+        content = built.blocks;
+        urlScrape = built.scrape;
+        content.unshift({
+          type: "text",
+          text: `(Tip: this looks like a ${host === "figma" ? "Figma" : "GitHub"} URL. Configure a ${host === "figma" ? "Figma" : "GitHub"} MCP server in mcp.config.json to get richer data than a generic web scrape. See mcp/README.md.)`,
+        });
+      }
+    } else {
+      const built = await buildUrlContent(raw.url);
+      if ("error" in built) {
+        return new Response(JSON.stringify({ error: built.error }), {
+          status: 502,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      content = built.blocks;
+      urlScrape = built.scrape;
     }
-    content = built;
   } else {
     const built = buildImageContent(raw.images);
     if ("error" in built) {
@@ -384,6 +552,21 @@ export async function POST(req: NextRequest) {
       status: 500,
       headers: { "Content-Type": "application/json" },
     });
+  }
+
+  if (raw.kind === "url") {
+    inventory.source = {
+      kind: enrichedKind ?? "url",
+      refUrl: raw.url,
+      title: urlScrape?.title ?? undefined,
+      description: urlScrape?.description ?? undefined,
+      ogImage: urlScrape?.ogImage ?? undefined,
+    };
+    if (urlScrape && inventory.designLanguage.palette.length === 0 && urlScrape.palette.length > 0) {
+      inventory.designLanguage.palette = urlScrape.palette.slice(0, 6);
+    }
+  } else {
+    inventory.source = { kind: "images" };
   }
 
   return new Response(JSON.stringify(inventory), {
