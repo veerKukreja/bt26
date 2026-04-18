@@ -6,6 +6,7 @@ const nextConfig: NextConfig = {
     root: path.resolve(__dirname),
   },
   allowedDevOrigins: ["*.trycloudflare.com", "raph.live"],
+  serverExternalPackages: ["esbuild"],
 };
 
 export default nextConfig;
