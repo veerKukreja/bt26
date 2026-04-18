@@ -64,18 +64,26 @@ import App from "./App";
 // PRISM_EDITOR_INSTALL — injected by Preview; outer UI depends on these messages.
 (function prismEditor() {
   if (typeof window === "undefined") return;
-  const w = window as unknown as { __prismEditorInstalled?: boolean };
-  if (w.__prismEditorInstalled) return;
-  w.__prismEditorInstalled = true;
-  function selectorFor(el: Element): string {
+  var anyW = window;
+  if (anyW.__prismEditorInstalled) return;
+  anyW.__prismEditorInstalled = true;
+  try { console.log("[prism-editor] installed"); } catch (e) {}
+  try {
+    window.parent.postMessage({ type: "prism:editor-ready" }, "*");
+  } catch (e) {}
+
+  function selectorFor(el) {
     if (!el || el === document.body) return "body";
-    const parts: string[] = [];
-    let node: Element | null = el;
+    var parts = [];
+    var node = el;
     while (node && node !== document.body && parts.length < 8) {
-      let tag = node.tagName.toLowerCase();
-      const parent = node.parentElement;
+      var tag = node.tagName.toLowerCase();
+      var parent = node.parentElement;
       if (parent) {
-        const sibs = Array.from(parent.children).filter(c => c.tagName === node!.tagName);
+        var sibs = [];
+        for (var i = 0; i < parent.children.length; i++) {
+          if (parent.children[i].tagName === node.tagName) sibs.push(parent.children[i]);
+        }
         if (sibs.length > 1) tag += ":nth-of-type(" + (sibs.indexOf(node) + 1) + ")";
       }
       parts.unshift(tag);
@@ -83,42 +91,62 @@ import App from "./App";
     }
     return parts.join(" > ");
   }
-  function describe(el: HTMLElement) {
-    const rect = el.getBoundingClientRect();
-    const text = (el.innerText || el.textContent || "").trim().slice(0, 200);
-    let html = el.outerHTML || "";
+  function describe(el) {
+    var rect = el.getBoundingClientRect();
+    var text = ((el.innerText || el.textContent || "") + "").replace(/^\\s+|\\s+$/g, "").slice(0, 200);
+    var html = el.outerHTML || "";
     if (html.length > 600) html = html.slice(0, 600) + "...";
     return {
       selector: selectorFor(el),
       tag: el.tagName,
-      text,
+      text: text,
       outerHTMLExcerpt: html,
       rect: { top: rect.top, left: rect.left, width: rect.width, height: rect.height },
     };
   }
-  window.addEventListener("click", (e) => {
+  window.addEventListener("click", function (e) {
     if (!e.shiftKey) return;
     if (!(e.target instanceof HTMLElement)) return;
     e.preventDefault();
     e.stopPropagation();
     window.parent.postMessage({
-      type: "prism:editor", event: "click",
-      x: e.clientX, y: e.clientY, target: describe(e.target),
+      type: "prism:editor",
+      event: "click",
+      x: e.clientX,
+      y: e.clientY,
+      target: describe(e.target),
     }, "*");
   }, true);
-  window.addEventListener("contextmenu", (e) => {
+  window.addEventListener("contextmenu", function (e) {
     if (!(e.target instanceof HTMLElement)) return;
     e.preventDefault();
     window.parent.postMessage({
-      type: "prism:editor", event: "contextmenu",
-      x: e.clientX, y: e.clientY, target: describe(e.target),
+      type: "prism:editor",
+      event: "contextmenu",
+      x: e.clientX,
+      y: e.clientY,
+      target: describe(e.target),
     }, "*");
   }, true);
 })();
 
-const el = document.getElementById("root")!;
-createRoot(el).render(<App />);
+createRoot(document.getElementById("root")).render(<App />);
 `;
+
+const PRISM_PACKAGE_JSON = JSON.stringify(
+  {
+    name: "prism-app",
+    main: "/index.tsx",
+    dependencies: {
+      react: "^19.0.0",
+      "react-dom": "^19.0.0",
+      "framer-motion": "^12.0.0",
+      "lucide-react": "^0.468.0",
+    },
+  },
+  null,
+  2,
+);
 
 export function Preview({ files, versionKey, onError, onReady }: PreviewProps) {
   const sandpackFiles: Record<string, { code: string }> = {};
@@ -130,6 +158,10 @@ export function Preview({ files, versionKey, onError, onReady }: PreviewProps) {
   // snapshot, past or future, and Sandpack never falls back to its bare
   // default /index.tsx.
   sandpackFiles["/index.tsx"] = { code: PRISM_EDITOR_INDEX_TSX };
+  // Ensure Sandpack's bundler uses /index.tsx as entry (some generations
+  // produce a package.json without main, and the bundler falls back to
+  // /src/index.tsx which our installer is NOT in).
+  sandpackFiles["/package.json"] = { code: PRISM_PACKAGE_JSON };
 
   return (
     <SandpackProvider
