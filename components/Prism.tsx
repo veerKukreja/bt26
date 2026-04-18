@@ -8,6 +8,7 @@ import { BrainstormPane } from "./BrainstormPane";
 import { ElementEditor, type EditorEvent } from "./ElementEditor";
 import { FileExplorer } from "./FileExplorer";
 import { streamGenerate } from "@/lib/generate-client";
+import { extractLatestPath } from "@/lib/generate-status";
 import { DEFAULT_APP } from "@/lib/default-app";
 import { EMPTY_USAGE, accumulateUsage } from "@/lib/env-usage";
 import { emojiFaviconDataUri } from "@/lib/export-templates";
@@ -305,10 +306,25 @@ export function Prism({ sessionId, initialSnapshots, persistEnabled }: Props) {
     ) => {
       lastPromptRef.current = prompt;
       committedThisCycleRef.current = false;
+      const startedAt = Date.now();
+      let lastPath: string | null = null;
+      let filesStarted = 0;
+      let mcpLabel: string | null = null;
+      let toolStarted = false;
+      let lastProgressPushMs = 0;
+      const PROGRESS_THROTTLE_MS = 120;
       setStatus(
         errorContext
-          ? { kind: "fixing", attempt }
-          : { kind: "generating", chars: 0 },
+          ? { kind: "fixing", attempt, startedAt }
+          : {
+              kind: "generating",
+              chars: 0,
+              startedAt,
+              filesDone: 0,
+              currentFile: null,
+              mcpLabel: null,
+              toolStarted: false,
+            },
       );
       let gotFiles: FileMap | null = null;
       let gotSummary = "";
@@ -321,8 +337,58 @@ export function Prism({ sessionId, initialSnapshots, persistEnabled }: Props) {
           writeup: opts?.writeup,
         },
         {
-          onProgress: (chars) => {
-            if (!errorContext) setStatus({ kind: "generating", chars });
+          onMcpGathering: (servers) => {
+            if (errorContext) return;
+            mcpLabel =
+              servers.length > 0
+                ? `gathering context from ${servers.slice(0, 2).join(", ")}`
+                : "gathering context";
+            setStatus({
+              kind: "generating",
+              chars: 0,
+              startedAt,
+              filesDone: 0,
+              currentFile: null,
+              mcpLabel,
+              toolStarted: false,
+            });
+          },
+          onMcpGathered: () => {
+            mcpLabel = null;
+            if (errorContext) return;
+            setStatus({
+              kind: "generating",
+              chars: 0,
+              startedAt,
+              filesDone: 0,
+              currentFile: null,
+              mcpLabel: null,
+              toolStarted,
+            });
+          },
+          onToolStart: () => {
+            toolStarted = true;
+          },
+          onProgress: (chars, tail) => {
+            if (errorContext) return;
+            const latest = extractLatestPath(tail);
+            const fileChanged = latest && latest !== lastPath;
+            if (fileChanged) {
+              filesStarted += 1;
+              lastPath = latest;
+            }
+            const now = Date.now();
+            if (!fileChanged && now - lastProgressPushMs < PROGRESS_THROTTLE_MS) return;
+            lastProgressPushMs = now;
+            setStatus({
+              kind: "generating",
+              chars,
+              startedAt,
+              filesDone: Math.max(filesStarted - 1, 0),
+              currentFile: lastPath,
+              mcpLabel: null,
+              toolStarted,
+            });
           },
           onUsage: (usage) => {
             setSessionUsage((prev) => accumulateUsage(prev, usage));
@@ -550,11 +616,17 @@ export function Prism({ sessionId, initialSnapshots, persistEnabled }: Props) {
                     if (busy) return;
                     e.preventDefault();
                     e.stopPropagation();
-                    setEditorEvent({
-                      event: "click",
-                      x: e.clientX,
-                      y: e.clientY,
-                      target: { selector: "", tag: "", text: "", outerHTMLExcerpt: "", rect: { top: 0, left: 0, width: 0, height: 0 } },
+                    const { clientX, clientY } = e;
+                    setEditorEvent((prev) => {
+                      // Any open popover: a plain click just dismisses it.
+                      // Next click opens a fresh comment popover.
+                      if (prev) return null;
+                      return {
+                        event: "click",
+                        x: clientX,
+                        y: clientY,
+                        target: { selector: "", tag: "", text: "", outerHTMLExcerpt: "", rect: { top: 0, left: 0, width: 0, height: 0 } },
+                      };
                     });
                   }}
                   onContextMenu={(e) => {
