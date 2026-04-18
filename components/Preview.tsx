@@ -61,75 +61,81 @@ const PRISM_EDITOR_INDEX_TSX = `import React from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
 
-// PRISM_EDITOR_INSTALL — injected by Preview; outer UI depends on these messages.
-(function prismEditor() {
-  if (typeof window === "undefined") return;
-  var anyW = window;
-  if (anyW.__prismEditorInstalled) return;
-  anyW.__prismEditorInstalled = true;
-  try { console.log("[prism-editor] installed"); } catch (e) {}
-  try {
-    window.parent.postMessage({ type: "prism:editor-ready" }, "*");
-  } catch (e) {}
+// Render first — never block the page on the editor install.
+const rootEl = document.getElementById("root");
+if (rootEl) {
+  createRoot(rootEl).render(<App />);
+}
 
-  function selectorFor(el) {
-    if (!el || el === document.body) return "body";
-    var parts = [];
-    var node = el;
-    while (node && node !== document.body && parts.length < 8) {
-      var tag = node.tagName.toLowerCase();
-      var parent = node.parentElement;
-      if (parent) {
-        var sibs = [];
-        for (var i = 0; i < parent.children.length; i++) {
-          if (parent.children[i].tagName === node.tagName) sibs.push(parent.children[i]);
+// PRISM_EDITOR_INSTALL — outer UI consumes the messages from here.
+try {
+  (function prismEditor() {
+    if (typeof window === "undefined") return;
+    var anyW = window;
+    if (anyW.__prismEditorInstalled) return;
+    anyW.__prismEditorInstalled = true;
+    try { console.log("[prism-editor] installed"); } catch (e) {}
+    try { window.parent.postMessage({ type: "prism:editor-ready" }, "*"); } catch (e) {}
+
+    function selectorFor(el) {
+      if (!el || el === document.body) return "body";
+      var parts = [];
+      var node = el;
+      while (node && node !== document.body && parts.length < 8) {
+        var tag = node.tagName.toLowerCase();
+        var parent = node.parentElement;
+        if (parent) {
+          var sibs = [];
+          for (var i = 0; i < parent.children.length; i++) {
+            if (parent.children[i].tagName === node.tagName) sibs.push(parent.children[i]);
+          }
+          if (sibs.length > 1) tag += ":nth-of-type(" + (sibs.indexOf(node) + 1) + ")";
         }
-        if (sibs.length > 1) tag += ":nth-of-type(" + (sibs.indexOf(node) + 1) + ")";
+        parts.unshift(tag);
+        node = parent;
       }
-      parts.unshift(tag);
-      node = parent;
+      return parts.join(" > ");
     }
-    return parts.join(" > ");
-  }
-  function describe(el) {
-    var rect = el.getBoundingClientRect();
-    var text = ((el.innerText || el.textContent || "") + "").replace(/^\\s+|\\s+$/g, "").slice(0, 200);
-    var html = el.outerHTML || "";
-    if (html.length > 600) html = html.slice(0, 600) + "...";
-    return {
-      selector: selectorFor(el),
-      tag: el.tagName,
-      text: text,
-      outerHTMLExcerpt: html,
-      rect: { top: rect.top, left: rect.left, width: rect.width, height: rect.height },
-    };
-  }
-  window.addEventListener("click", function (e) {
-    if (!(e.target instanceof HTMLElement)) return;
-    e.preventDefault();
-    e.stopPropagation();
-    window.parent.postMessage({
-      type: "prism:editor",
-      event: "click",
-      x: e.clientX,
-      y: e.clientY,
-      target: describe(e.target),
-    }, "*");
-  }, true);
-  window.addEventListener("contextmenu", function (e) {
-    if (!(e.target instanceof HTMLElement)) return;
-    e.preventDefault();
-    window.parent.postMessage({
-      type: "prism:editor",
-      event: "contextmenu",
-      x: e.clientX,
-      y: e.clientY,
-      target: describe(e.target),
-    }, "*");
-  }, true);
-})();
-
-createRoot(document.getElementById("root")).render(<App />);
+    function describe(el) {
+      var rect = el.getBoundingClientRect();
+      var text = ((el.innerText || el.textContent || "") + "").replace(/^\\s+|\\s+$/g, "").slice(0, 200);
+      var html = el.outerHTML || "";
+      if (html.length > 600) html = html.slice(0, 600) + "...";
+      return {
+        selector: selectorFor(el),
+        tag: el.tagName,
+        text: text,
+        outerHTMLExcerpt: html,
+        rect: { top: rect.top, left: rect.left, width: rect.width, height: rect.height },
+      };
+    }
+    window.addEventListener("click", function (e) {
+      if (!(e.target instanceof HTMLElement)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      window.parent.postMessage({
+        type: "prism:editor",
+        event: "click",
+        x: e.clientX,
+        y: e.clientY,
+        target: describe(e.target),
+      }, "*");
+    }, true);
+    window.addEventListener("contextmenu", function (e) {
+      if (!(e.target instanceof HTMLElement)) return;
+      e.preventDefault();
+      window.parent.postMessage({
+        type: "prism:editor",
+        event: "contextmenu",
+        x: e.clientX,
+        y: e.clientY,
+        target: describe(e.target),
+      }, "*");
+    }, true);
+  })();
+} catch (e) {
+  try { console.error("[prism-editor] install failed:", e); } catch (_) {}
+}
 `;
 
 const PRISM_PACKAGE_JSON = JSON.stringify(
