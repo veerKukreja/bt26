@@ -6,7 +6,7 @@
     "dev": "next dev -p 9998",
     "build": "next build",
     "start": "next start -p 9998",
-    "test": "node --import tsx --test lib/export.test.ts lib/env-usage.test.ts app/api/export/html/route.test.ts"
+    "test": "node --import tsx --test lib/export.test.ts lib/env-usage.test.ts lib/print.test.ts app/api/export/html/route.test.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.90.0",
