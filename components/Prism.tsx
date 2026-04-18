@@ -602,6 +602,7 @@ function TopBar({ mode, onModeChange, ephemeral, onEphemeralChange, lang, onLang
           aria-selected={mode === "build"}
           onClick={() => onModeChange("build")}
           style={pillStyle(mode === "build")}
+          title="Build mode — type what the page becomes"
         >
           Build
         </button>
@@ -610,7 +611,7 @@ function TopBar({ mode, onModeChange, ephemeral, onEphemeralChange, lang, onLang
           aria-selected={mode === "brainstorm"}
           onClick={() => onModeChange("brainstorm")}
           style={pillStyle(mode === "brainstorm")}
-          title={hasWriteup ? "Continue brainstorming — you have a draft" : "Plan before building"}
+          title={hasWriteup ? "Continue brainstorming — you have a draft" : "Brainstorm mode — plan before building"}
         >
           Brainstorm{hasWriteup ? " •" : ""}
         </button>
@@ -642,6 +643,7 @@ function TopBar({ mode, onModeChange, ephemeral, onEphemeralChange, lang, onLang
         value={lang}
         onChange={(e) => onLangChange(e.target.value as SupportedLang)}
         aria-label="Interface language"
+        title="Interface language"
         style={{
           padding: "8px 12px",
           fontSize: 11,

@@ -512,6 +512,7 @@ export function PromptBar({
               aria-haspopup="dialog"
               aria-expanded={methodologyOpen}
               aria-describedby={methodologyOpen ? "env-methodology" : undefined}
+              title="Session energy & water usage — click for methodology"
               style={pillBtn({ muted: true })}
             >
               {formatNumber(energyWh)} Wh · {formatNumber(waterMl)} mL
@@ -530,6 +531,7 @@ export function PromptBar({
             aria-label={`Versions — currently v${currentIndex + 1} of ${snapshots.length}`}
             aria-haspopup="menu"
             aria-expanded={versionsOpen}
+            title={`Version history (${currentIndex + 1} of ${snapshots.length}) — click to scrub`}
             style={pillBtn({ active: versionsOpen })}
           >
             <Layers size={12} />
@@ -572,6 +574,7 @@ export function PromptBar({
           aria-label="Export"
           aria-haspopup="menu"
           aria-expanded={exportOpen}
+          title="Export current snapshot (.zip, .html, CodeSandbox)"
           style={iconBtn({ active: exportOpen })}
         >
           <Download size={16} />
@@ -684,6 +687,13 @@ export function PromptBar({
               : disabled
                 ? "Generating"
                 : "Generate"
+          }
+          title={
+            mode === "brainstorm" && writeup
+              ? "Build from this brainstorm"
+              : disabled
+                ? "Generating…"
+                : "Generate (Enter)"
           }
         >
           ↑
