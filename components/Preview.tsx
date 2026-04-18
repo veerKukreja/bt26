@@ -80,7 +80,7 @@ const ELEMENT_LISTENER_SCRIPT = `(function () {
     return parts.join(" > ");
   }
   function describe(el) {
-    if (!el) return null;
+    if (!el) return { selector: "", tag: "empty", text: "", outerHTMLExcerpt: "", rect: { top: 0, left: 0, width: 0, height: 0 } };
     var r = el.getBoundingClientRect();
     var text = ((el.innerText || el.textContent || "") + "").replace(/^\\s+|\\s+$/g, "").slice(0, 200);
     var html = el.outerHTML || "";
@@ -97,7 +97,7 @@ const ELEMENT_LISTENER_SCRIPT = `(function () {
     var d = e.data;
     if (!d || typeof d !== "object") return;
     if (d.type !== "prism:queryElement") return;
-    var el = document.elementFromPoint(d.x | 0, d.y | 0);
+    var el = document.elementFromPoint(d.x | 0, d.y | 0) || document.body;
     var info = describe(el);
     try {
       window.parent.postMessage({ type: "prism:elementInfo", requestId: d.requestId, target: info }, "*");
@@ -105,8 +105,19 @@ const ELEMENT_LISTENER_SCRIPT = `(function () {
   });
 })();`;
 
+const DEFAULT_INDEX_HTML = `<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Prism</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+  </head>
+  <body style="margin:0"><div id="root"></div></body>
+</html>
+`;
+
 function injectListener(html: string): string {
-  if (!html) return html;
+  if (!html) return injectListener(DEFAULT_INDEX_HTML);
   if (html.indexOf("__prismListenerInstalled") !== -1) return html;
   const tag = "<script>" + ELEMENT_LISTENER_SCRIPT + "</script>";
   const headClose = html.indexOf("</head>");
@@ -120,10 +131,13 @@ export function Preview({ files, versionKey, onError, onReady }: PreviewProps) {
   for (const [path, code] of Object.entries(files)) {
     sandpackFiles[path] = { code };
   }
+  // Always ensure /public/index.html has our listener. If the snapshot
+  // doesn't provide one, Sandpack would fall back to its own default HTML
+  // (no listener → popover stays on "locating…" forever).
   const existingHtml = sandpackFiles["/public/index.html"]?.code;
-  if (existingHtml) {
-    sandpackFiles["/public/index.html"] = { code: injectListener(existingHtml) };
-  }
+  sandpackFiles["/public/index.html"] = {
+    code: injectListener(existingHtml ?? DEFAULT_INDEX_HTML),
+  };
 
   return (
     <SandpackProvider

@@ -314,6 +314,14 @@ export function Prism({ sessionId, initialSnapshots, persistEnabled }: Props) {
     } catch {
       /* cross-origin throw — ignore, popover just shows empty target */
     }
+    // Fallback: if the iframe listener never answers (old snapshot, cache,
+    // etc.), flip the "locating…" label to "element" so it doesn't stick.
+    setTimeout(() => {
+      setEditorEvent((prev) => {
+        if (!prev || prev.target.tag) return prev;
+        return { ...prev, target: { ...prev.target, tag: "element" } };
+      });
+    }, 600);
   }, []);
 
   const stopGeneration = useCallback(() => {
