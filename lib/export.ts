@@ -86,3 +86,41 @@ export function buildZip(
     });
   });
 }
+
+export async function requestHtmlBundle(
+  files: FileMap,
+  summary: string,
+): Promise<Blob> {
+  const res = await fetch("/api/export/html", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ files, summary }),
+  });
+  if (!res.ok) {
+    const msg = await res.text();
+    let parsed: { error?: string };
+    try { parsed = JSON.parse(msg); } catch { parsed = {}; }
+    throw new Error(parsed.error ?? `HTML export failed (${res.status})`);
+  }
+  return res.blob();
+}
+
+export function triggerDownload(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+export async function copyToClipboard(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    return false;
+  }
+}
