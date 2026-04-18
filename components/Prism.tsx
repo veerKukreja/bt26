@@ -109,25 +109,39 @@ export function Prism({ sessionId, initialSnapshots, persistEnabled }: Props) {
     setHydrated(true);
   }, [sessionId, hydrated]);
 
-  // Programmatic kickstart: simulate the manual v1→v2 scrub that makes
-  // a blank initial mount render. Sandpack's first mount after hydration
-  // sometimes stays on the bouncing-dot compile; a follow-up remount
-  // resolves it. Fire once, ~300ms after hydration, only if there's more
-  // than the origin snapshot (pure-origin mounts render the dot fine).
+  // Programmatic kickstart: replicate the manual "click v1, then v2 again"
+  // sequence that reliably makes the preview paint. Single versionKey bumps
+  // aren't enough — Sandpack needs a full scrub-away-and-back cycle.
+  //
+  //   t=150ms: scrub to index 0 (mount v1, bump versionKey)
+  //   t=650ms: scrub back to the real current index (mount target, bump again)
+  //
+  // Only fires when there's >1 snapshot (otherwise there's nowhere to scrub).
   useEffect(() => {
     if (!hydrated) return;
     if (kickstartedRef.current) return;
-    const hasContent = snapshots.length > 1 || snapshots[0]?.id !== "origin";
-    if (!hasContent) {
+    if (snapshots.length < 2) {
       kickstartedRef.current = true;
       return;
     }
-    const t = setTimeout(() => {
-      kickstartedRef.current = true;
+    kickstartedRef.current = true;
+    const targetIndex = currentIndex;
+    const t1 = setTimeout(() => {
+      setCurrentIndex(0);
       setVersionKey((k) => k + 1);
-    }, 300);
-    return () => clearTimeout(t);
-  }, [hydrated, snapshots]);
+      lastGoodFilesRef.current = snapshots[0]?.files ?? DEFAULT_APP;
+    }, 150);
+    const t2 = setTimeout(() => {
+      setCurrentIndex(targetIndex);
+      setVersionKey((k) => k + 1);
+      lastGoodFilesRef.current = snapshots[targetIndex]?.files ?? DEFAULT_APP;
+    }, 650);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated]);
 
   // Snapshots persistence:
   //   - ephemeral → sessionStorage (survives tab, not browser restart)
