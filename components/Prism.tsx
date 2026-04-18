@@ -64,6 +64,7 @@ export function Prism({ sessionId, initialSnapshots, persistEnabled }: Props) {
   const [lang, setLang] = useState<SupportedLang>("en");
   const [references, setReferences] = useState<FeatureInventory[]>([]);
   const [writeup, setWriteup] = useState<WriteUp | null>(null);
+  const kickstartedRef = useRef(false);
 
   // Hydrate user prefs + session storage on mount.
   // useLayoutEffect so hydrated=true is committed before the browser paints
@@ -107,6 +108,26 @@ export function Prism({ sessionId, initialSnapshots, persistEnabled }: Props) {
 
     setHydrated(true);
   }, [sessionId, hydrated]);
+
+  // Programmatic kickstart: simulate the manual v1→v2 scrub that makes
+  // a blank initial mount render. Sandpack's first mount after hydration
+  // sometimes stays on the bouncing-dot compile; a follow-up remount
+  // resolves it. Fire once, ~300ms after hydration, only if there's more
+  // than the origin snapshot (pure-origin mounts render the dot fine).
+  useEffect(() => {
+    if (!hydrated) return;
+    if (kickstartedRef.current) return;
+    const hasContent = snapshots.length > 1 || snapshots[0]?.id !== "origin";
+    if (!hasContent) {
+      kickstartedRef.current = true;
+      return;
+    }
+    const t = setTimeout(() => {
+      kickstartedRef.current = true;
+      setVersionKey((k) => k + 1);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [hydrated, snapshots]);
 
   // Snapshots persistence:
   //   - ephemeral → sessionStorage (survives tab, not browser restart)
