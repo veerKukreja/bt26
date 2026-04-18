@@ -105,7 +105,6 @@ import App from "./App";
     };
   }
   window.addEventListener("click", function (e) {
-    if (!e.shiftKey) return;
     if (!(e.target instanceof HTMLElement)) return;
     e.preventDefault();
     e.stopPropagation();

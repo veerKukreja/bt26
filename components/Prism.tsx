@@ -219,17 +219,22 @@ export function Prism({ sessionId, initialSnapshots, persistEnabled }: Props) {
         const rect = iframeEl?.getBoundingClientRect();
         const offX = rect?.left ?? 0;
         const offY = rect?.top ?? 0;
-        setEditorEvent({
-          event: data.event,
-          x: data.x + offX,
-          y: data.y + offY,
-          target: {
-            selector: String(data.target.selector ?? ""),
-            tag: String(data.target.tag ?? ""),
-            text: String(data.target.text ?? ""),
-            outerHTMLExcerpt: String(data.target.outerHTMLExcerpt ?? ""),
-            rect: data.target.rect ?? { top: 0, left: 0, width: 0, height: 0 },
-          },
+        setEditorEvent((prev) => {
+          // If a context-menu popover is already open and the user clicks,
+          // dismiss it. (That's the "click elsewhere to close" behavior.)
+          if (prev && prev.event === "contextmenu" && data.event === "click") return null;
+          return {
+            event: data.event,
+            x: data.x + offX,
+            y: data.y + offY,
+            target: {
+              selector: String(data.target.selector ?? ""),
+              tag: String(data.target.tag ?? ""),
+              text: String(data.target.text ?? ""),
+              outerHTMLExcerpt: String(data.target.outerHTMLExcerpt ?? ""),
+              rect: data.target.rect ?? { top: 0, left: 0, width: 0, height: 0 },
+            },
+          };
         });
       }
     };

@@ -140,7 +140,7 @@ export function ElementEditor({ event, onClose, onSubmitEdit }: Props) {
         }}
       >
         <span>&lt;{event.target.tag.toLowerCase()}&gt;</span>
-        <span style={{ opacity: 0.5 }}>⇧-click / right-click</span>
+        <span style={{ opacity: 0.5 }}>click / right-click</span>
       </div>
       {event.target.text && (
         <div
