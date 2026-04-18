@@ -15,7 +15,7 @@ import { emojiFaviconDataUri } from "@/lib/export-templates";
 import { setEphemeral as setSnapshotsEphemeral } from "@/lib/snapshots";
 import { LanguageProvider, SUPPORTED_LANGS, type SupportedLang } from "@/lib/i18n";
 import { detectLanguage, isRTL } from "@/lib/language";
-import type { FeatureInventory, FileMap, SessionUsage, Snapshot, WriteUp } from "@/lib/types";
+import type { ActionEntry, FeatureInventory, FileMap, SessionUsage, Snapshot, WriteUp } from "@/lib/types";
 
 interface Props {
   sessionId: string;
@@ -33,8 +33,10 @@ const ENV_KEY = (id: string) => `prism:env:${id}`;
 const REFS_KEY = (id: string) => `prism:refs:${id}`;
 const WRITEUP_KEY = (id: string) => `prism:writeup:${id}`;
 const MODE_KEY = (id: string) => `prism:mode:${id}`;
+const ACTIONS_KEY = (id: string) => `prism:actions:${id}`;
 const EPHEMERAL_KEY = "prism:ephemeral";
 const LANG_KEY = "prism:lang";
+const ACTIONS_MAX = 50;
 
 function readJson<T>(key: string, storage: Storage): T | null {
   try {
@@ -196,6 +198,26 @@ export function Prism({ sessionId, initialSnapshots, persistEnabled }: Props) {
 
   const [sessionUsage, setSessionUsage] = useState<SessionUsage>(EMPTY_USAGE);
   const [usageHydrated, setUsageHydrated] = useState(false);
+  const [actions, setActions] = useState<ActionEntry[]>([]);
+  const [actionsHydrated, setActionsHydrated] = useState(false);
+
+  useEffect(() => {
+    if (actionsHydrated) return;
+    if (typeof window === "undefined") {
+      setActionsHydrated(true);
+      return;
+    }
+    const storage = ephemeral ? window.sessionStorage : window.localStorage;
+    const existing = readJson<ActionEntry[]>(ACTIONS_KEY(sessionId), storage);
+    if (Array.isArray(existing)) setActions(existing);
+    setActionsHydrated(true);
+  }, [sessionId, actionsHydrated, ephemeral]);
+
+  useEffect(() => {
+    if (!actionsHydrated || typeof window === "undefined") return;
+    const storage = ephemeral ? window.sessionStorage : window.localStorage;
+    writeJson(ACTIONS_KEY(sessionId), actions, storage);
+  }, [sessionId, actions, actionsHydrated, ephemeral]);
 
   useEffect(() => {
     if (usageHydrated) return;
@@ -257,9 +279,40 @@ export function Prism({ sessionId, initialSnapshots, persistEnabled }: Props) {
         }
         return;
       }
+      if (data.type === "prism:elementInfo" && data.target && typeof data.target === "object") {
+        setEditorEvent((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            target: {
+              selector: String(data.target.selector ?? ""),
+              tag: String(data.target.tag ?? ""),
+              text: String(data.target.text ?? ""),
+              outerHTMLExcerpt: String(data.target.outerHTMLExcerpt ?? ""),
+              rect: data.target.rect ?? { top: 0, left: 0, width: 0, height: 0 },
+            },
+          };
+        });
+        return;
+      }
     };
     window.addEventListener("message", handler);
     return () => window.removeEventListener("message", handler);
+  }, []);
+
+  // Ask the iframe what element is at (clientX, clientY). Response comes back
+  // as a prism:elementInfo message handled above, which updates editorEvent.target.
+  const queryIframeElement = useCallback((clientX: number, clientY: number) => {
+    const iframeEl = document.querySelector<HTMLIFrameElement>(".prism-sp-iframe");
+    if (!iframeEl?.contentWindow) return;
+    const rect = iframeEl.getBoundingClientRect();
+    const x = Math.round(clientX - rect.left);
+    const y = Math.round(clientY - rect.top);
+    try {
+      iframeEl.contentWindow.postMessage({ type: "prism:queryElement", x, y, requestId: Date.now() }, "*");
+    } catch {
+      /* cross-origin throw — ignore, popover just shows empty target */
+    }
   }, []);
 
   const commitSnapshot = useCallback(
@@ -328,6 +381,14 @@ export function Prism({ sessionId, initialSnapshots, persistEnabled }: Props) {
       );
       let gotFiles: FileMap | null = null;
       let gotSummary = "";
+      let lastChars = 0;
+      let actionTokens = 0;
+      let actionError: string | null = null;
+      const actionKind: ActionEntry["kind"] = opts?.translate
+        ? "translate"
+        : errorContext
+          ? "fix"
+          : "generate";
       await streamGenerate(
         {
           prompt,
@@ -370,6 +431,7 @@ export function Prism({ sessionId, initialSnapshots, persistEnabled }: Props) {
             toolStarted = true;
           },
           onProgress: (chars, tail) => {
+            lastChars = chars;
             if (errorContext) return;
             const latest = extractLatestPath(tail);
             const fileChanged = latest && latest !== lastPath;
@@ -391,6 +453,11 @@ export function Prism({ sessionId, initialSnapshots, persistEnabled }: Props) {
             });
           },
           onUsage: (usage) => {
+            actionTokens =
+              (usage.inputTokens ?? 0) +
+              (usage.outputTokens ?? 0) +
+              (usage.cacheReadTokens ?? 0) +
+              (usage.cacheCreationTokens ?? 0);
             setSessionUsage((prev) => accumulateUsage(prev, usage));
           },
           onDone: (files, summary) => {
@@ -398,11 +465,25 @@ export function Prism({ sessionId, initialSnapshots, persistEnabled }: Props) {
             gotSummary = summary;
           },
           onError: (message) => {
+            actionError = message;
             setStatus({ kind: "error", message });
             setTimeout(() => setStatus({ kind: "idle" }), 4000);
           },
         },
       );
+
+      const entry: ActionEntry = {
+        id: crypto.randomUUID(),
+        prompt,
+        summary: gotSummary || (actionError ? "(failed)" : "Updated"),
+        kind: actionKind,
+        startedAt: new Date(startedAt).toISOString(),
+        durationMs: Date.now() - startedAt,
+        tokens: actionTokens || Math.floor(lastChars / 4),
+        filesCount: gotFiles ? Object.keys(gotFiles).length : 0,
+        error: actionError ?? undefined,
+      };
+      setActions((prev) => [entry, ...prev].slice(0, ACTIONS_MAX));
       if (!gotFiles) return;
 
       setPendingFiles(gotFiles);
@@ -617,10 +698,10 @@ export function Prism({ sessionId, initialSnapshots, persistEnabled }: Props) {
                     e.preventDefault();
                     e.stopPropagation();
                     const { clientX, clientY } = e;
+                    let opened = false;
                     setEditorEvent((prev) => {
-                      // Any open popover: a plain click just dismisses it.
-                      // Next click opens a fresh comment popover.
                       if (prev) return null;
+                      opened = true;
                       return {
                         event: "click",
                         x: clientX,
@@ -628,17 +709,20 @@ export function Prism({ sessionId, initialSnapshots, persistEnabled }: Props) {
                         target: { selector: "", tag: "", text: "", outerHTMLExcerpt: "", rect: { top: 0, left: 0, width: 0, height: 0 } },
                       };
                     });
+                    if (opened) queryIframeElement(clientX, clientY);
                   }}
                   onContextMenu={(e) => {
                     if (busy) return;
                     e.preventDefault();
                     e.stopPropagation();
+                    const { clientX, clientY } = e;
                     setEditorEvent({
                       event: "contextmenu",
-                      x: e.clientX,
-                      y: e.clientY,
+                      x: clientX,
+                      y: clientY,
                       target: { selector: "", tag: "", text: "", outerHTMLExcerpt: "", rect: { top: 0, left: 0, width: 0, height: 0 } },
                     });
+                    queryIframeElement(clientX, clientY);
                   }}
                 />
               )}
@@ -737,6 +821,8 @@ export function Prism({ sessionId, initialSnapshots, persistEnabled }: Props) {
           lang={lang}
           mode={mode}
           writeup={writeup}
+          actions={actions}
+          currentPrompt={busy ? lastPromptRef.current : null}
         />
 
         <style>{`

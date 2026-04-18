@@ -57,10 +57,72 @@ function ErrorBridge({
   return null;
 }
 
+const ELEMENT_LISTENER_SCRIPT = `(function () {
+  if (window.__prismListenerInstalled) return;
+  window.__prismListenerInstalled = true;
+  function selectorFor(el) {
+    if (!el || el === document.body) return "body";
+    var parts = [];
+    var node = el;
+    while (node && node !== document.body && parts.length < 8) {
+      var tag = node.tagName.toLowerCase();
+      var p = node.parentElement;
+      if (p) {
+        var sibs = [];
+        for (var i = 0; i < p.children.length; i++) {
+          if (p.children[i].tagName === node.tagName) sibs.push(p.children[i]);
+        }
+        if (sibs.length > 1) tag += ":nth-of-type(" + (sibs.indexOf(node) + 1) + ")";
+      }
+      parts.unshift(tag);
+      node = p;
+    }
+    return parts.join(" > ");
+  }
+  function describe(el) {
+    if (!el) return null;
+    var r = el.getBoundingClientRect();
+    var text = ((el.innerText || el.textContent || "") + "").replace(/^\\s+|\\s+$/g, "").slice(0, 200);
+    var html = el.outerHTML || "";
+    if (html.length > 600) html = html.slice(0, 600) + "...";
+    return {
+      selector: selectorFor(el),
+      tag: el.tagName || "",
+      text: text,
+      outerHTMLExcerpt: html,
+      rect: { top: r.top, left: r.left, width: r.width, height: r.height },
+    };
+  }
+  window.addEventListener("message", function (e) {
+    var d = e.data;
+    if (!d || typeof d !== "object") return;
+    if (d.type !== "prism:queryElement") return;
+    var el = document.elementFromPoint(d.x | 0, d.y | 0);
+    var info = describe(el);
+    try {
+      window.parent.postMessage({ type: "prism:elementInfo", requestId: d.requestId, target: info }, "*");
+    } catch (err) {}
+  });
+})();`;
+
+function injectListener(html: string): string {
+  if (!html) return html;
+  if (html.indexOf("__prismListenerInstalled") !== -1) return html;
+  const tag = "<script>" + ELEMENT_LISTENER_SCRIPT + "</script>";
+  const headClose = html.indexOf("</head>");
+  if (headClose >= 0) return html.slice(0, headClose) + tag + html.slice(headClose);
+  // No </head> — insert at the top.
+  return tag + html;
+}
+
 export function Preview({ files, versionKey, onError, onReady }: PreviewProps) {
   const sandpackFiles: Record<string, { code: string }> = {};
   for (const [path, code] of Object.entries(files)) {
     sandpackFiles[path] = { code };
+  }
+  const existingHtml = sandpackFiles["/public/index.html"]?.code;
+  if (existingHtml) {
+    sandpackFiles["/public/index.html"] = { code: injectListener(existingHtml) };
   }
 
   return (

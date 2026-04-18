@@ -159,7 +159,7 @@ export function ElementEditor({ event, onClose, onSubmitEdit }: Props) {
           gap: 8,
         }}
       >
-        <span>&lt;{event.target.tag.toLowerCase()}&gt;</span>
+        <span>{event.target.tag ? `<${event.target.tag.toLowerCase()}>` : "locating…"}</span>
         <span style={{ opacity: 0.5 }}>click / right-click</span>
       </div>
       {event.target.text && (
