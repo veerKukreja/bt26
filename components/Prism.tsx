@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Preview } from "./Preview";
 import { PromptBar, type Status } from "./PromptBar";
@@ -66,7 +66,9 @@ export function Prism({ sessionId, initialSnapshots, persistEnabled }: Props) {
   const [writeup, setWriteup] = useState<WriteUp | null>(null);
 
   // Hydrate user prefs + session storage on mount.
-  useEffect(() => {
+  // useLayoutEffect so hydrated=true is committed before the browser paints
+  // and Preview mounts exactly once with the correct files + versionKey.
+  useLayoutEffect(() => {
     if (hydrated) return;
     if (typeof window === "undefined") return;
 
