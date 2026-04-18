@@ -131,8 +131,22 @@ export async function POST(req: NextRequest) {
         send("usage", usage);
         send("done", { files, summary: parsed.summary ?? "Updated" });
       } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        send("error", { message });
+        const raw = err instanceof Error ? err.message : String(err);
+        console.error("/api/generate failed:", raw);
+        const lower = raw.toLowerCase();
+        let safe: string;
+        if (lower.includes("api key") || lower.includes("authentication") || lower.includes("unauthorized")) {
+          safe = "Auth failed — check ANTHROPIC_API_KEY.";
+        } else if (lower.includes("rate limit") || lower.includes("429")) {
+          safe = "Rate limited — try again in a moment.";
+        } else if (lower.includes("malformed json")) {
+          safe = raw.split("\n")[0].slice(0, 200);
+        } else if (lower.includes("did not return a files array")) {
+          safe = raw;
+        } else {
+          safe = "Generation failed. See server logs for details.";
+        }
+        send("error", { message: safe });
       } finally {
         controller.close();
       }

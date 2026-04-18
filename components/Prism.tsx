@@ -135,8 +135,7 @@ export function Prism({ sessionId, initialSnapshots, persistEnabled }: Props) {
         document.title = data.title;
       }
       if (typeof data.favicon === "string" && data.favicon.length > 0) {
-        const href = data.favicon.startsWith("data:") ||
-          data.favicon.startsWith("http")
+        const href = data.favicon.startsWith("data:")
           ? data.favicon
           : emojiFavicon(data.favicon);
         let link = document.querySelector<HTMLLinkElement>("link[rel~='icon']");

@@ -12,10 +12,36 @@ export const maxDuration = 15;
 export const dynamic = "force-dynamic";
 
 const MAX_OUTPUT_BYTES = 5_000_000;
+const MAX_INPUT_BYTES = 2_000_000;
 
 interface Body {
   files: FileMap;
   summary: string;
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"']/g, (c) =>
+    c === "&" ? "&amp;"
+      : c === "<" ? "&lt;"
+      : c === ">" ? "&gt;"
+      : c === '"' ? "&quot;"
+      : "&#39;",
+  );
+}
+
+function neutralizeScriptTags(js: string): string {
+  return js.replace(/<\/script/gi, "<\\/script");
+}
+
+function isValidBody(v: unknown): v is Body {
+  if (!v || typeof v !== "object") return false;
+  const b = v as { files?: unknown; summary?: unknown };
+  if (!b.files || typeof b.files !== "object") return false;
+  if (typeof b.summary !== "string") return false;
+  for (const [k, val] of Object.entries(b.files)) {
+    if (typeof k !== "string" || typeof val !== "string") return false;
+  }
+  return true;
 }
 
 function inMemoryLoader(files: FileMap): esbuild.Plugin {
@@ -61,8 +87,21 @@ function emojiFavicon(ch: string): string {
 }
 
 export async function POST(req: NextRequest) {
-  const body = (await req.json()) as Body;
-  const { files, summary } = body;
+  const contentLength = Number(req.headers.get("content-length") ?? 0);
+  if (contentLength > MAX_INPUT_BYTES) {
+    return new Response(JSON.stringify({ error: "Input too large" }), {
+      status: 413,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+  const raw = await req.json();
+  if (!isValidBody(raw)) {
+    return new Response(JSON.stringify({ error: "Malformed request body" }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+  const { files, summary } = raw;
   const entry = files["/index.tsx"] ?? files["/index.ts"];
   if (!entry) {
     return new Response(JSON.stringify({ error: "Missing /index.tsx" }), {
@@ -93,10 +132,12 @@ export async function POST(req: NextRequest) {
     }
     const emoji = extractEmoji(summary);
     const favicon = emoji ? emojiFavicon(emoji) : DEFAULT_FAVICON_DATA_URI;
+    const safeTitle = escapeHtml(summary.slice(0, 100) || "Prism Export");
+    const safeJs = neutralizeScriptTags(js);
     const html = STANDALONE_HTML_TPL
-      .replace("{{TITLE}}", summary.slice(0, 100) || "Prism Export")
+      .replace("{{TITLE}}", safeTitle)
       .replace("{{FAVICON}}", favicon)
-      .replace("{{BUNDLE_JS}}", js);
+      .replace("{{BUNDLE_JS}}", safeJs);
     return new Response(html, {
       status: 200,
       headers: {
