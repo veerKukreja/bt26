@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Preview } from "./Preview";
 import { PromptBar, type Status } from "./PromptBar";
 import { BrainstormPane } from "./BrainstormPane";
+import { ElementEditor, type EditorEvent } from "./ElementEditor";
 import { streamGenerate } from "@/lib/generate-client";
 import { DEFAULT_APP } from "@/lib/default-app";
 import { EMPTY_USAGE, accumulateUsage } from "@/lib/env-usage";
@@ -171,6 +172,7 @@ export function Prism({ sessionId, initialSnapshots, persistEnabled }: Props) {
   const [pendingFiles, setPendingFiles] = useState<FileMap | null>(null);
   const [status, setStatus] = useState<Status>({ kind: "idle" });
   const [versionKey, setVersionKey] = useState(0);
+  const [editorEvent, setEditorEvent] = useState<EditorEvent | null>(null);
 
   const lastGoodFilesRef = useRef<FileMap>(
     initialSnapshots[initialSnapshots.length - 1]?.files ?? DEFAULT_APP,
@@ -191,25 +193,59 @@ export function Prism({ sessionId, initialSnapshots, persistEnabled }: Props) {
     const handler = (e: MessageEvent) => {
       const data = e.data;
       if (!data || typeof data !== "object") return;
-      if (data.type !== "prism:meta") return;
-      if (typeof data.title === "string" && data.title.length > 0) {
-        document.title = data.title;
-      }
-      if (typeof data.favicon === "string" && data.favicon.length > 0) {
-        const href = data.favicon.startsWith("data:")
-          ? data.favicon
-          : emojiFaviconDataUri(data.favicon);
-        let link = document.querySelector<HTMLLinkElement>("link[rel~='icon']");
-        if (!link) {
-          link = document.createElement("link");
-          link.rel = "icon";
-          document.head.appendChild(link);
+      if (data.type === "prism:meta") {
+        if (typeof data.title === "string" && data.title.length > 0) {
+          document.title = data.title;
         }
-        link.href = href;
+        if (typeof data.favicon === "string" && data.favicon.length > 0) {
+          const href = data.favicon.startsWith("data:")
+            ? data.favicon
+            : emojiFaviconDataUri(data.favicon);
+          let link = document.querySelector<HTMLLinkElement>("link[rel~='icon']");
+          if (!link) {
+            link = document.createElement("link");
+            link.rel = "icon";
+            document.head.appendChild(link);
+          }
+          link.href = href;
+        }
+        return;
+      }
+      if (data.type === "prism:editor") {
+        if (data.event !== "click" && data.event !== "contextmenu") return;
+        if (typeof data.x !== "number" || typeof data.y !== "number") return;
+        if (!data.target || typeof data.target !== "object") return;
+        const iframeEl = document.querySelector<HTMLIFrameElement>(".prism-sp-iframe");
+        const rect = iframeEl?.getBoundingClientRect();
+        const offX = rect?.left ?? 0;
+        const offY = rect?.top ?? 0;
+        setEditorEvent({
+          event: data.event,
+          x: data.x + offX,
+          y: data.y + offY,
+          target: {
+            selector: String(data.target.selector ?? ""),
+            tag: String(data.target.tag ?? ""),
+            text: String(data.target.text ?? ""),
+            outerHTMLExcerpt: String(data.target.outerHTMLExcerpt ?? ""),
+            rect: data.target.rect ?? { top: 0, left: 0, width: 0, height: 0 },
+          },
+        });
       }
     };
     window.addEventListener("message", handler);
     return () => window.removeEventListener("message", handler);
+  }, []);
+
+  // Context-menu "Describe a change…" reopens as click-popover.
+  useEffect(() => {
+    const onReopen = (e: Event) => {
+      const detail = (e as CustomEvent<EditorEvent>).detail;
+      if (!detail) return;
+      setEditorEvent({ ...detail, event: "click" });
+    };
+    window.addEventListener("prism:reopen-as-click", onReopen as EventListener);
+    return () => window.removeEventListener("prism:reopen-as-click", onReopen as EventListener);
   }, []);
 
   const commitSnapshot = useCallback(
@@ -322,6 +358,29 @@ export function Prism({ sessionId, initialSnapshots, persistEnabled }: Props) {
       if (useWriteup) setMode("build");
     },
     [status, currentFiles, runGeneration, mode, writeup],
+  );
+
+  const submitElementEdit = useCallback(
+    async (instruction: string, target: { selector: string; tag: string; text: string; outerHTMLExcerpt: string }) => {
+      if (status.kind === "generating" || status.kind === "fixing") return;
+      if (!instruction.trim()) return;
+      retryCountRef.current = 0;
+      const scoped = [
+        "The user clicked on a specific element and wants this scoped change:",
+        "",
+        instruction.trim(),
+        "",
+        "Element context (use this to locate the element in the source):",
+        `- Tag: ${target.tag}`,
+        `- Selector hint: ${target.selector}`,
+        target.text ? `- Text content: "${target.text}"` : null,
+        target.outerHTMLExcerpt ? `- outerHTML excerpt:\n${target.outerHTMLExcerpt}` : null,
+        "",
+        "Apply ONLY the change the user described. Keep every other part of the source exactly as it is. Return the complete source tree.",
+      ].filter(Boolean).join("\n");
+      await runGeneration(scoped, currentFiles, null, 0);
+    },
+    [status, currentFiles, runGeneration],
   );
 
   const submitTranslate = useCallback(
@@ -518,6 +577,14 @@ export function Prism({ sessionId, initialSnapshots, persistEnabled }: Props) {
         {ephemeral && <EphemeralBadge />}
 
         {onBlankCanvas && <OnboardingHint />}
+
+        <ElementEditor
+          event={editorEvent}
+          onClose={() => setEditorEvent(null)}
+          onSubmitEdit={(instruction, target) => {
+            void submitElementEdit(instruction, target);
+          }}
+        />
 
         <PromptBar
           onSubmit={submit}

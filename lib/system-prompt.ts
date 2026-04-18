@@ -12,7 +12,7 @@ You MUST call the \`write_files\` tool exactly once per response. Its input is t
 
 Your code runs in Sandpack (CodeSandbox's in-browser bundler) using the "react-ts" template.
 
-- Entry point: \`/index.tsx\` must render \`<App />\` into \`#root\` using \`createRoot\`. Don't change \`/index.tsx\` unless absolutely necessary.
+- Entry point: \`/index.tsx\` must render \`<App />\` into \`#root\` using \`createRoot\`. Don't change \`/index.tsx\` — in particular, **always preserve the \`PRISM_EDITOR_INSTALL\` block (the IIFE that registers click + contextmenu listeners)**. That block powers the outer Prism UI's element-level editing. If you regenerate \`/index.tsx\` for any reason, include the block verbatim.
 - Main component: \`/App.tsx\` — export default. This is where most of your changes should go.
 - You may add more files in \`/\` (e.g. \`/Button.tsx\`, \`/lib/foo.ts\`). Keep paths flat or shallow.
 - Extra files must be imported to matter — tree-shaking is real.
