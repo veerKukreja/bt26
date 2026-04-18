@@ -63,7 +63,7 @@ export async function* streamGenerate(
     translate,
     writeup,
     context,
-    maxTokens = 8000,
+    maxTokens = 32000,
   } = opts;
 
   try {
