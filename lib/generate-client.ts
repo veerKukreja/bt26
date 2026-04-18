@@ -5,6 +5,8 @@ export interface GenerateCallbacks {
   onProgress?: (chars: number, tail: string) => void;
   onText?: (text: string) => void;
   onUsage?: (usage: SessionUsage) => void;
+  onMcpGathering?: (servers: string[]) => void;
+  onMcpGathered?: (summary: string, toolCalls: number, timedOut: boolean) => void;
   onDone: (files: FileMap, summary: string) => void;
   onError: (message: string) => void;
 }
@@ -81,6 +83,16 @@ export async function streamGenerate(
       if (typeof payload !== "object" || payload === null) continue;
       const p = payload as Record<string, unknown>;
       switch (event) {
+        case "mcp_gathering":
+          cb.onMcpGathering?.(Array.isArray(p.servers) ? (p.servers as string[]) : []);
+          break;
+        case "mcp_gathered":
+          cb.onMcpGathered?.(
+            typeof p.summary === "string" ? p.summary : "",
+            typeof p.toolCalls === "number" ? p.toolCalls : 0,
+            p.timedOut === true,
+          );
+          break;
         case "tool_start":
           cb.onToolStart?.();
           break;

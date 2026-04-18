@@ -40,3 +40,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 .claude/
+
+# MCP — the user's real config may contain secrets; .example.json is committed
+/mcp.config.json

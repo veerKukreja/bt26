@@ -41,6 +41,7 @@ The whole screen is the product. No chat sidebar. No IDE chrome.
 - **Fork URLs** — the Fork button (in the prompt bar) copies a shareable URL pointing at the current state.
 - **Live favicon + tab title** — generated components can post `{type:"prism:meta", title, favicon}` to the parent. The browser tab itself morphs as the page evolves. Favicons are restricted to `data:` URIs (no external HTTP leaks).
 - **Honest session usage** — a muted `x Wh · y mL` indicator shows real token usage converted via published inference-energy estimates. No "vs competitors" framing; click for methodology + disclaimer.
+- **MCP integration** — `mcp/` ships an MCP server that exposes Prism to Claude Desktop / Claude Code / Cursor / Cline (see [`mcp/README.md`](mcp/README.md)). The `@mcp` prompt prefix in the app makes Prism *consume* configured MCP servers (Figma, filesystem, etc.) to gather context before building (see [`mcp.config.example.json`](mcp.config.example.json)).
 
 ## Stack
 

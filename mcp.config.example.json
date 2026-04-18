@@ -1,0 +1,16 @@
+{
+  "_comment": "Copy this file to mcp.config.json to enable @mcp context-gathering. The prism app consumes these servers during generate when a prompt begins with '@mcp'. Keep secrets out of this file; use ${ENV_VAR} interpolation.",
+  "servers": {
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/tmp/prism-scratch"]
+    },
+    "figma": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-figma"],
+      "env": {
+        "FIGMA_ACCESS_TOKEN": "${FIGMA_ACCESS_TOKEN}"
+      }
+    }
+  }
+}

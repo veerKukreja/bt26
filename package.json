@@ -12,6 +12,7 @@
     "@anthropic-ai/sdk": "^0.90.0",
     "@codesandbox/sandpack-client": "^2.19.8",
     "@codesandbox/sandpack-react": "^2.20.0",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "@supabase/supabase-js": "^2.103.3",
     "esbuild": "^0.24.0",
     "fflate": "^0.8.2",
