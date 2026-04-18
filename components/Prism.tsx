@@ -6,6 +6,7 @@ import { Preview } from "./Preview";
 import { PromptBar, type Status } from "./PromptBar";
 import { Timeline } from "./Timeline";
 import { ForkButton } from "./ForkButton";
+import { ExportButton } from "./ExportButton";
 import { streamGenerate } from "@/lib/generate-client";
 import { DEFAULT_APP } from "@/lib/default-app";
 import type { FileMap, Snapshot } from "@/lib/types";
@@ -365,6 +366,12 @@ export function Prism({ sessionId, initialSnapshots, persistEnabled }: Props) {
           }}
         />
       )}
+      <ExportButton
+        files={currentFiles}
+        summary={snapshots[currentIndex]?.summary || snapshots[currentIndex]?.prompt || "Prism"}
+        snapshotId={snapshots[currentIndex]?.id ?? sessionId}
+        disabled={busy}
+      />
       <ForkButton onFork={handleFork} disabled={busy} />
       <Timeline
         snapshots={snapshots}
