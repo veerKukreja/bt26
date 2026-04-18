@@ -1,0 +1,18 @@
+[     173ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[     200ms] [LOG] [HMR] connected @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[     841ms] [LOG] [prism] /index.tsx loaded @ https://2-19-8-sandpack.codesandbox.io/static/js/vendors~sandbox-startup.ca8a95b40.chunk.js:0
+[     841ms] [LOG] [prism] render scheduled @ https://2-19-8-sandpack.codesandbox.io/static/js/vendors~sandbox-startup.ca8a95b40.chunk.js:0
+[     841ms] [LOG] [prism-editor] installed @ https://2-19-8-sandpack.codesandbox.io/static/js/vendors~sandbox-startup.ca8a95b40.chunk.js:0
+[    6216ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[    6241ms] [LOG] [Fast Refresh] done in 36ms @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[    6809ms] [LOG] [prism] /index.tsx loaded @ https://2-19-8-sandpack.codesandbox.io/static/js/vendors~sandbox-startup.ca8a95b40.chunk.js:0
+[    6810ms] [LOG] [prism] render scheduled, App typeof: function @ https://2-19-8-sandpack.codesandbox.io/static/js/vendors~sandbox-startup.ca8a95b40.chunk.js:0
+[    6810ms] [LOG] [prism-editor] installed @ https://2-19-8-sandpack.codesandbox.io/static/js/vendors~sandbox-startup.ca8a95b40.chunk.js:0
+[   76097ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_TIMED_OUT @ https://col.csbops.io/data/sandpack:0
+[  158193ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[  158219ms] [LOG] [Fast Refresh] done in 85ms @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[  158873ms] [LOG] [prism] /index.tsx loaded @ https://2-19-8-sandpack.codesandbox.io/static/js/vendors~sandbox-startup.ca8a95b40.chunk.js:0
+[  158874ms] [LOG] [prism] render scheduled, App typeof: function @ https://2-19-8-sandpack.codesandbox.io/static/js/vendors~sandbox-startup.ca8a95b40.chunk.js:0
+[  158874ms] [LOG] [prism-editor] installed @ https://2-19-8-sandpack.codesandbox.io/static/js/vendors~sandbox-startup.ca8a95b40.chunk.js:0
+[  178596ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[  178643ms] [LOG] [Fast Refresh] done in 60ms @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431

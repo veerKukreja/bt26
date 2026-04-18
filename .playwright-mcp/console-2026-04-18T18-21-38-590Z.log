@@ -1,0 +1,149 @@
+[     440ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[     511ms] [LOG] [HMR] connected @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[     694ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[     848ms] [LOG] [Fast Refresh] done in 255ms @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[    3076ms] [LOG] [prism-editor] installed @ https://2-19-8-sandpack.codesandbox.io/static/js/vendors~sandbox-startup.ca8a95b40.chunk.js:0
+[   15576ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[   16354ms] [LOG] [Fast Refresh] done in 856ms @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[   16973ms] [LOG] [prism-editor] installed @ https://2-19-8-sandpack.codesandbox.io/static/js/vendors~sandbox-startup.ca8a95b40.chunk.js:0
+[   27597ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[   27678ms] [LOG] [Fast Refresh] done in 161ms @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[   37720ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[   37742ms] [LOG] [Fast Refresh] done in 66ms @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[   43961ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[   44000ms] [LOG] [Fast Refresh] done in 116ms @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[   78448ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_TIMED_OUT @ https://col.csbops.io/data/sandpack:0
+[  125730ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[  125789ms] [LOG] [Fast Refresh] done in 161ms @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[  145710ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[  145773ms] [LOG] [Fast Refresh] done in 146ms @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[  150514ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[  152167ms] [LOG] [Fast Refresh] done in 1731ms @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[  184816ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[  184839ms] [LOG] [Fast Refresh] done in 49ms @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[  194528ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[  195087ms] [ERROR] ./components/ElementEditor.tsx:211:1
+Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+  209 |     </div>
+  210 |   );
+> 211 | }
+      | ^
+  212 |
+  213 | function MenuRow({
+  214 |   icon,
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./components/ElementEditor.tsx [Client Component Browser]
+    ./components/Prism.tsx [Client Component Browser]
+    ./components/Prism.tsx [Server Component]
+    ./app/s/[sessionId]/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./components/ElementEditor.tsx [Client Component SSR]
+    ./components/Prism.tsx [Client Component SSR]
+    ./components/Prism.tsx [Server Component]
+    ./app/s/[sessionId]/page.tsx [Server Component] @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:3272
+[  195262ms] [ERROR] ./components/ElementEditor.tsx:211:1
+Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+  209 |     </div>
+  210 |   );
+> 211 | }
+      | ^
+  212 |
+  213 | function MenuRow({
+  214 |   icon,
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./components/ElementEditor.tsx [Client Component Browser]
+    ./components/Prism.tsx [Client Component Browser]
+    ./components/Prism.tsx [Server Component]
+    ./app/s/[sessionId]/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./components/ElementEditor.tsx [Client Component SSR]
+    ./components/Prism.tsx [Client Component SSR]
+    ./components/Prism.tsx [Server Component]
+    ./app/s/[sessionId]/page.tsx [Server Component] @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:3272
+[  195329ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[  202799ms] [ERROR] ./components/ElementEditor.tsx:211:1
+Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+  209 |     </div>
+  210 |   );
+> 211 | }
+      | ^
+  212 |
+  213 | function MenuRow({
+  214 |   icon,
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./components/ElementEditor.tsx [Client Component Browser]
+    ./components/Prism.tsx [Client Component Browser]
+    ./components/Prism.tsx [Server Component]
+    ./app/s/[sessionId]/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./components/ElementEditor.tsx [Client Component SSR]
+    ./components/Prism.tsx [Client Component SSR]
+    ./components/Prism.tsx [Server Component]
+    ./app/s/[sessionId]/page.tsx [Server Component] @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:3272
+[  202840ms] [ERROR] ./components/ElementEditor.tsx:214:1
+Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+  212 |     </div>
+  213 |   );
+> 214 | }
+      | ^
+  215 |
+  216 | function MenuRow({
+  217 |   icon,
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./components/ElementEditor.tsx [Client Component Browser]
+    ./components/Prism.tsx [Client Component Browser]
+    ./components/Prism.tsx [Server Component]
+    ./app/s/[sessionId]/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./components/ElementEditor.tsx [Client Component SSR]
+    ./components/Prism.tsx [Client Component SSR]
+    ./components/Prism.tsx [Server Component]
+    ./app/s/[sessionId]/page.tsx [Server Component] @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:3272
+[  202901ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[  216695ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[  216745ms] [LOG] [Fast Refresh] done in 130ms @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[  225382ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[  225407ms] [LOG] [Fast Refresh] done in 53ms @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[  269600ms] [ERROR] WebSocket connection to 'ws://localhost:9998/_next/webpack-hmr?id=nyyGYhqeeNJZgfAS4y8jT' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_client_0fhqo1d._.js:13299
+[  270954ms] [LOG] [HMR] connected @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[  272186ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[  272214ms] [LOG] [HMR] connected @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[  272217ms] [WARNING] %c%s%c [33m[1m⚠[22m[39m metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "http://localhost:9998". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px  Server   @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[  273242ms] [LOG] [prism-editor] installed @ https://2-19-8-sandpack.codesandbox.io/static/js/vendors~sandbox-startup.ca8a95b40.chunk.js:0
+[  335133ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[  335713ms] [LOG] [Fast Refresh] done in 664ms @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[  348248ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_TIMED_OUT @ https://col.csbops.io/data/sandpack:0
+[  534615ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[  534637ms] [LOG] [Fast Refresh] done in 92ms @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[  535309ms] [LOG] [prism-editor] installed @ https://2-19-8-sandpack.codesandbox.io/static/js/vendors~sandbox-startup.ca8a95b40.chunk.js:0
+[  542648ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[  542661ms] [LOG] [Fast Refresh] done in 114ms @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[  610405ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_TIMED_OUT @ https://col.csbops.io/data/sandpack:0
+[  635038ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[  635338ms] [LOG] [Fast Refresh] done in 402ms @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[  645378ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[  645407ms] [LOG] [Fast Refresh] done in 73ms @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[  652622ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[  652655ms] [LOG] [Fast Refresh] done in 108ms @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[  665494ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[  665677ms] [LOG] [Fast Refresh] done in 253ms @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431

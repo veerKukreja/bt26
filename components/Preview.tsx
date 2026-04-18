@@ -57,169 +57,11 @@ function ErrorBridge({
   return null;
 }
 
-const PRISM_EDITOR_INDEX_TSX = `import React from "react";
-import { createRoot } from "react-dom/client";
-import App from "./App";
-
-try { console.log("[prism] /index.tsx loaded"); } catch (_) {}
-
-// VISIBILITY TEST: directly paint to the body so we can prove the iframe
-// is in the DOM and visible, independent of React / Sandpack.
-try {
-  var testBanner = document.createElement("div");
-  testBanner.textContent = "[prism] iframe body is visible";
-  testBanner.style.cssText = "position:fixed;top:0;left:0;right:0;z-index:99999;background:#ff3366;color:white;padding:10px;font-family:ui-monospace,monospace;font-size:12px;font-weight:bold;text-align:center";
-  document.body.appendChild(testBanner);
-} catch (e) {
-  try { console.error("[prism] body paint failed:", e); } catch (_) {}
-}
-
-const rootEl = document.getElementById("root");
-if (!rootEl) {
-  document.body.innerHTML = '<div style="padding:24px;font-family:ui-monospace,monospace;color:#b33">[Prism] No #root element found in host HTML.</div>';
-} else {
-  try {
-    createRoot(rootEl).render(
-      <div style={{ minHeight: "100vh", background: "#fafafa", position: "relative" }}>
-        <div style={{
-          position: "fixed",
-          top: 8,
-          right: 8,
-          padding: "4px 10px",
-          background: "rgba(255, 235, 0, 0.9)",
-          color: "#000",
-          fontFamily: "ui-monospace, monospace",
-          fontSize: 10,
-          letterSpacing: "0.08em",
-          textTransform: "uppercase",
-          borderRadius: 4,
-          zIndex: 9999,
-          pointerEvents: "none",
-        }}>prism: App {typeof App}</div>
-        <App />
-      </div>
-    );
-    try { console.log("[prism] render scheduled, App typeof:", typeof App); } catch (_) {}
-  } catch (e) {
-    try { console.error("[prism] createRoot failed:", e); } catch (_) {}
-    rootEl.innerHTML = '<div style="padding:24px;font-family:ui-monospace,monospace;color:#b33">[Prism] createRoot failed: ' + String(e) + '</div>';
-  }
-}
-
-// PRISM_EDITOR_INSTALL — outer UI consumes the messages from here.
-try {
-  (function prismEditor() {
-    if (typeof window === "undefined") return;
-    var anyW = window;
-    if (anyW.__prismEditorInstalled) return;
-    anyW.__prismEditorInstalled = true;
-    try { console.log("[prism-editor] installed"); } catch (e) {}
-    try { window.parent.postMessage({ type: "prism:editor-ready" }, "*"); } catch (e) {}
-
-    function selectorFor(el) {
-      if (!el || el === document.body) return "body";
-      var parts = [];
-      var node = el;
-      while (node && node !== document.body && parts.length < 8) {
-        var tag = node.tagName.toLowerCase();
-        var parent = node.parentElement;
-        if (parent) {
-          var sibs = [];
-          for (var i = 0; i < parent.children.length; i++) {
-            if (parent.children[i].tagName === node.tagName) sibs.push(parent.children[i]);
-          }
-          if (sibs.length > 1) tag += ":nth-of-type(" + (sibs.indexOf(node) + 1) + ")";
-        }
-        parts.unshift(tag);
-        node = parent;
-      }
-      return parts.join(" > ");
-    }
-    function describe(el) {
-      var rect = el.getBoundingClientRect();
-      var text = ((el.innerText || el.textContent || "") + "").replace(/^\\s+|\\s+$/g, "").slice(0, 200);
-      var html = el.outerHTML || "";
-      if (html.length > 600) html = html.slice(0, 600) + "...";
-      return {
-        selector: selectorFor(el),
-        tag: el.tagName,
-        text: text,
-        outerHTMLExcerpt: html,
-        rect: { top: rect.top, left: rect.left, width: rect.width, height: rect.height },
-      };
-    }
-    window.addEventListener("click", function (e) {
-      if (!(e.target instanceof HTMLElement)) return;
-      e.preventDefault();
-      e.stopPropagation();
-      window.parent.postMessage({
-        type: "prism:editor",
-        event: "click",
-        x: e.clientX,
-        y: e.clientY,
-        target: describe(e.target),
-      }, "*");
-    }, true);
-    window.addEventListener("contextmenu", function (e) {
-      if (!(e.target instanceof HTMLElement)) return;
-      e.preventDefault();
-      window.parent.postMessage({
-        type: "prism:editor",
-        event: "contextmenu",
-        x: e.clientX,
-        y: e.clientY,
-        target: describe(e.target),
-      }, "*");
-    }, true);
-  })();
-} catch (e) {
-  try { console.error("[prism-editor] install failed:", e); } catch (_) {}
-}
-`;
-
-const PRISM_INDEX_HTML = `<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <title>Prism</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-  </head>
-  <body style="margin:0"><div id="root"></div></body>
-</html>
-`;
-
-const PRISM_PACKAGE_JSON = JSON.stringify(
-  {
-    name: "prism-app",
-    main: "/index.tsx",
-    dependencies: {
-      react: "^19.0.0",
-      "react-dom": "^19.0.0",
-      "framer-motion": "^12.0.0",
-      "lucide-react": "^0.468.0",
-    },
-  },
-  null,
-  2,
-);
-
 export function Preview({ files, versionKey, onError, onReady }: PreviewProps) {
   const sandpackFiles: Record<string, { code: string }> = {};
   for (const [path, code] of Object.entries(files)) {
     sandpackFiles[path] = { code };
   }
-  // Always inject the editor installer at /index.tsx, regardless of what the
-  // generator produced. Guarantees shift-click / right-click work on every
-  // snapshot, past or future, and Sandpack never falls back to its bare
-  // default /index.tsx.
-  sandpackFiles["/index.tsx"] = { code: PRISM_EDITOR_INDEX_TSX };
-  // Ensure Sandpack's bundler uses /index.tsx as entry (some generations
-  // produce a package.json without main, and the bundler falls back to
-  // /src/index.tsx which our installer is NOT in).
-  sandpackFiles["/package.json"] = { code: PRISM_PACKAGE_JSON };
-  // Lock down the host HTML so <div id="root"> always exists — otherwise
-  // my injected index.tsx's rootEl is null and nothing mounts.
-  sandpackFiles["/public/index.html"] = { code: PRISM_INDEX_HTML };
 
   return (
     <SandpackProvider
@@ -250,7 +92,7 @@ export function Preview({ files, versionKey, onError, onReady }: PreviewProps) {
           showRefreshButton={false}
           showRestartButton={false}
           showNavigator={false}
-          showSandpackErrorOverlay={true}
+          showSandpackErrorOverlay={false}
           style={{ height: "100%", width: "100%", border: "none" }}
         />
         <ErrorBridge onError={onError} onReady={onReady} />

@@ -1,0 +1,39 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e6]:
+      - iframe [ref=e7]:
+        
+      - generic "Open in CodeSandbox" [ref=e9]
+    - generic [ref=e17]:
+      - tablist "Mode" [ref=e18]:
+        - tab "Build" [selected] [ref=e19]
+        - tab "Brainstorm" [ref=e20] [cursor=pointer]
+      - button "Ephemeral" [ref=e21] [cursor=pointer]
+      - combobox "Interface language" [ref=e22] [cursor=pointer]:
+        - option "English" [selected]
+        - option "Español"
+        - option "Kreyòl"
+        - option "中文"
+        - option "العربية"
+        - option "বাংলা"
+        - option "Français"
+        - option "Русский"
+    - generic:
+      - generic: Prism
+      - generic: tell this page what to become
+    - generic [ref=e24]:
+      - 'textbox "Tell this page what to become. Try: a Tokyo coffee shop at 3am" [ref=e25]'
+      - button "Export" [ref=e26] [cursor=pointer]:
+        - img [ref=e27]
+      - button "Translate" [ref=e30] [cursor=pointer]:
+        - img [ref=e31]
+      - button "Print" [ref=e35] [cursor=pointer]:
+        - img [ref=e36]
+      - button "Fork to new URL" [ref=e40] [cursor=pointer]:
+        - img [ref=e41]
+      - button "Start voice input" [ref=e46] [cursor=pointer]:
+        - img [ref=e47]
+      - button "Generate" [disabled] [ref=e53] [cursor=pointer]: ↑
+  - button "Open Next.js Dev Tools" [ref=e59] [cursor=pointer]:
+    - img [ref=e60]
+  - alert [ref=e63]

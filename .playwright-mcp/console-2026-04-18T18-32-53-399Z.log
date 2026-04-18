@@ -1,0 +1,111 @@
+[     296ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[     355ms] [LOG] [HMR] connected @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[    1074ms] [LOG] [prism-editor] installed @ https://2-19-8-sandpack.codesandbox.io/static/js/vendors~sandbox-startup.ca8a95b40.chunk.js:0
+[   29770ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[   29807ms] [LOG] [Fast Refresh] done in 49ms @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[   30455ms] [LOG] [prism-editor] render scheduled @ https://2-19-8-sandpack.codesandbox.io/static/js/vendors~sandbox-startup.ca8a95b40.chunk.js:0
+[   30456ms] [LOG] [prism-editor] installed @ https://2-19-8-sandpack.codesandbox.io/static/js/vendors~sandbox-startup.ca8a95b40.chunk.js:0
+[   76334ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_TIMED_OUT @ https://col.csbops.io/data/sandpack:0
+[  142510ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[  142645ms] [LOG] [Fast Refresh] done in 211ms @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[  150599ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[  150628ms] [LOG] [Fast Refresh] done in 36ms @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[  218911ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[  218947ms] [LOG] [Fast Refresh] done in 138ms @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[  260149ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[  260203ms] [LOG] [Fast Refresh] done in 62ms @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[  261076ms] [LOG] [prism] /index.tsx loaded @ https://2-19-8-sandpack.codesandbox.io/static/js/vendors~sandbox-startup.ca8a95b40.chunk.js:0
+[  261076ms] [LOG] [prism] render scheduled @ https://2-19-8-sandpack.codesandbox.io/static/js/vendors~sandbox-startup.ca8a95b40.chunk.js:0
+[  261076ms] [LOG] [prism-editor] installed @ https://2-19-8-sandpack.codesandbox.io/static/js/vendors~sandbox-startup.ca8a95b40.chunk.js:0
+[  279924ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[  279952ms] [LOG] [Fast Refresh] done in 37ms @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[  336110ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_TIMED_OUT @ https://col.csbops.io/data/sandpack:0
+[  454934ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[  455410ms] [ERROR] ./components/PromptBar.tsx:737:14
+Expected '</', got 'jsx text'
+  735 |           </button>
+  736 |         </Tooltip>
+> 737 |       </form>
+      |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 738 |
+      | ^
+> 739 |       {/* Methodology popup */}
+      | ^^^^^^
+  740 |       {usage && !isZeroUsage(usage) && (
+  741 |         <HoverCard
+  742 |           anchorRef={trackerRef}
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./components/PromptBar.tsx [Client Component Browser]
+    ./components/Prism.tsx [Client Component Browser]
+    ./components/Prism.tsx [Server Component]
+    ./app/s/[sessionId]/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./components/PromptBar.tsx [Client Component SSR]
+    ./components/Prism.tsx [Client Component SSR]
+    ./components/Prism.tsx [Server Component]
+    ./app/s/[sessionId]/page.tsx [Server Component] @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:3272
+[  455634ms] [ERROR] ./components/PromptBar.tsx:737:14
+Expected '</', got 'jsx text'
+  735 |           </button>
+  736 |         </Tooltip>
+> 737 |       </form>
+      |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 738 |
+      | ^
+> 739 |       {/* Methodology popup */}
+      | ^^^^^^
+  740 |       {usage && !isZeroUsage(usage) && (
+  741 |         <HoverCard
+  742 |           anchorRef={trackerRef}
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./components/PromptBar.tsx [Client Component Browser]
+    ./components/Prism.tsx [Client Component Browser]
+    ./components/Prism.tsx [Server Component]
+    ./app/s/[sessionId]/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./components/PromptBar.tsx [Client Component SSR]
+    ./components/Prism.tsx [Client Component SSR]
+    ./components/Prism.tsx [Server Component]
+    ./app/s/[sessionId]/page.tsx [Server Component] @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:3272
+[  455684ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[  460668ms] [ERROR] ./components/PromptBar.tsx:700:14
+Expected '</', got 'jsx text'
+  698 |           </button>
+  699 |         </Tooltip>
+> 700 |       </form>
+      |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 701 |
+      | ^
+> 702 |       {/* Methodology popup */}
+      | ^^^^^^
+  703 |       {usage && !isZeroUsage(usage) && (
+  704 |         <HoverCard
+  705 |           anchorRef={trackerRef}
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./components/PromptBar.tsx [Client Component Browser]
+    ./components/Prism.tsx [Client Component Browser]
+    ./components/Prism.tsx [Server Component]
+    ./app/s/[sessionId]/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./components/PromptBar.tsx [Client Component SSR]
+    ./components/Prism.tsx [Client Component SSR]
+    ./components/Prism.tsx [Server Component]
+    ./app/s/[sessionId]/page.tsx [Server Component] @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:3272
+[  460715ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[  466624ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[  466677ms] [LOG] [Fast Refresh] done in 76ms @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
