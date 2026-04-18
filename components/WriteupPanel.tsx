@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Loader2, RefreshCw, Copy, Check, FileText, GitBranch } from "lucide-react";
+import { Loader2, RefreshCw, Copy, Check, FileText, GitBranch, Braces, ClipboardPaste, Trash2 } from "lucide-react";
 import { streamBrainstorm } from "@/lib/brainstorm-client";
 import { copyToClipboard } from "@/lib/export";
 import { writeupToMarkdown, writeupToGithubIssue } from "@/lib/writeup-export";
@@ -31,7 +31,7 @@ export function WriteupPanel({ writeup, onChange, references }: WriteupPanelProp
   const [intent, setIntent] = useState("");
   const [busy, setBusy] = useState<null | "full" | string>(null);
   const [toast, setToast] = useState<string | null>(null);
-  const [copied, setCopied] = useState<"md" | "gh" | null>(null);
+  const [copied, setCopied] = useState<"md" | "gh" | "json" | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   const showToast = (msg: string) => {
@@ -94,15 +94,70 @@ export function WriteupPanel({ writeup, onChange, references }: WriteupPanelProp
     onChange({ ...writeup, [key]: value });
   };
 
-  const copyAs = async (kind: "md" | "gh") => {
+  const copyAs = async (kind: "md" | "gh" | "json") => {
     if (!writeup) return;
-    const text = kind === "md" ? writeupToMarkdown(writeup) : writeupToGithubIssue(writeup);
+    const text =
+      kind === "md"
+        ? writeupToMarkdown(writeup)
+        : kind === "gh"
+          ? writeupToGithubIssue(writeup)
+          : JSON.stringify(writeup, null, 2);
     const ok = await copyToClipboard(text);
     if (ok) {
       setCopied(kind);
       setTimeout(() => setCopied(null), 1500);
     } else {
       showToast("Couldn't copy — clipboard denied.");
+    }
+  };
+
+  const regenerateAll = () => {
+    if (!writeup || busy) return;
+    abortRef.current = new AbortController();
+    setBusy("full");
+    void streamBrainstorm(
+      {
+        intent: intent.trim() || writeup.title || "regenerate",
+        references: (references ?? []) as unknown as [],
+        mode: "full",
+        signal: abortRef.current.signal,
+      },
+      {
+        onDone: (w) => {
+          onChange(w);
+          setBusy(null);
+        },
+        onError: (m) => {
+          showToast(`Regenerate failed: ${m}`);
+          setBusy(null);
+        },
+      },
+    );
+  };
+
+  const clearAll = () => {
+    if (busy) return;
+    onChange(null);
+    setIntent("");
+  };
+
+  const pasteJson = async () => {
+    if (busy) return;
+    try {
+      const text = await navigator.clipboard.readText();
+      if (!text || !text.trim()) {
+        showToast("Clipboard is empty.");
+        return;
+      }
+      const parsed = JSON.parse(text);
+      if (!parsed || typeof parsed !== "object" || typeof parsed.title !== "string") {
+        showToast("Clipboard isn't a valid WriteUp JSON.");
+        return;
+      }
+      onChange(parsed as WriteUp);
+      showToast("Pasted.");
+    } catch (e) {
+      showToast(`Paste failed: ${(e as Error).message}`);
     }
   };
 
@@ -130,6 +185,8 @@ export function WriteupPanel({ writeup, onChange, references }: WriteupPanelProp
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
+        flexWrap: "wrap",
+        gap: 8,
       }}>
         <span style={{
           fontSize: 11,
@@ -138,16 +195,30 @@ export function WriteupPanel({ writeup, onChange, references }: WriteupPanelProp
           letterSpacing: "0.08em",
           textTransform: "uppercase",
         }}>Writeup</span>
-        {writeup && (
-          <div style={{ display: "flex", gap: 6 }}>
-            <button type="button" onClick={() => copyAs("md")} style={smallBtn()} aria-label="Copy as Markdown">
-              {copied === "md" ? <Check size={13} /> : <Copy size={13} />} Markdown
-            </button>
-            <button type="button" onClick={() => copyAs("gh")} style={smallBtn()} aria-label="Copy as GitHub issue">
-              {copied === "gh" ? <Check size={13} /> : <GitBranch size={13} />} GH Issue
-            </button>
-          </div>
-        )}
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {writeup && (
+            <>
+              <button type="button" onClick={() => copyAs("md")} style={smallBtn()} title="Copy as Markdown">
+                {copied === "md" ? <Check size={13} /> : <Copy size={13} />} MD
+              </button>
+              <button type="button" onClick={() => copyAs("gh")} style={smallBtn()} title="Copy as GitHub issue">
+                {copied === "gh" ? <Check size={13} /> : <GitBranch size={13} />} Issue
+              </button>
+              <button type="button" onClick={() => copyAs("json")} style={smallBtn()} title="Copy schema as JSON (paste into another Prism)">
+                {copied === "json" ? <Check size={13} /> : <Braces size={13} />} JSON
+              </button>
+              <button type="button" onClick={regenerateAll} style={smallBtn()} disabled={busy !== null} title="Regenerate the whole spec from your intent">
+                {busy === "full" ? <Loader2 size={13} className="wu-spin" /> : <RefreshCw size={13} />} Regen all
+              </button>
+              <button type="button" onClick={clearAll} style={smallBtn({ danger: true })} disabled={busy !== null} title="Clear the brainstorm and start over">
+                <Trash2 size={13} /> Clear
+              </button>
+            </>
+          )}
+          <button type="button" onClick={pasteJson} style={smallBtn()} disabled={busy !== null} title="Paste a WriteUp JSON from clipboard">
+            <ClipboardPaste size={13} /> Paste
+          </button>
+        </div>
       </header>
 
       {!writeup ? (
@@ -496,7 +567,7 @@ function regenStyle(): React.CSSProperties {
   };
 }
 
-function smallBtn(): React.CSSProperties {
+function smallBtn(opts?: { danger?: boolean }): React.CSSProperties {
   return {
     display: "inline-flex",
     alignItems: "center",
@@ -504,10 +575,10 @@ function smallBtn(): React.CSSProperties {
     padding: "6px 10px",
     fontSize: 11,
     fontFamily: "ui-sans-serif, system-ui, sans-serif",
-    background: "rgba(255,255,255,0.04)",
-    border: "1px solid rgba(255,255,255,0.1)",
+    background: opts?.danger ? "rgba(180,40,40,0.12)" : "rgba(255,255,255,0.04)",
+    border: `1px solid ${opts?.danger ? "rgba(180,40,40,0.35)" : "rgba(255,255,255,0.1)"}`,
     borderRadius: 8,
-    color: "rgba(255,255,255,0.8)",
+    color: opts?.danger ? "#ff8080" : "rgba(255,255,255,0.8)",
     cursor: "pointer",
   };
 }
