@@ -64,8 +64,25 @@ export function ElementEditor({ event, onClose, onSubmitEdit }: Props) {
 
   const anchor = clampAnchor(event.x, event.y);
 
+  const sharedKeyframes = (
+    <style>{`
+      @keyframes prism-ee-in {
+        from { opacity: 0; transform: translate3d(0, 6px, 0) scale(0.96); }
+        to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+      }
+      .prism-ee-row { transition: background 90ms ease, color 90ms ease; }
+      .prism-ee-row:hover:not([disabled]) { background: rgba(255,255,255,0.08) !important; color: #fff !important; }
+      .prism-ee-row:active:not([disabled]) { background: rgba(255,255,255,0.14) !important; }
+      .prism-ee-btn { transition: all 120ms ease; }
+      .prism-ee-btn:hover:not([disabled]) { transform: translateY(-1px); }
+      .prism-ee-btn:active:not([disabled]) { transform: translateY(0); }
+    `}</style>
+  );
+
   if (event.event === "contextmenu") {
     return (
+      <>
+        {sharedKeyframes}
       <div
         ref={rootRef}
         role="menu"
@@ -114,11 +131,14 @@ export function ElementEditor({ event, onClose, onSubmitEdit }: Props) {
         <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)", margin: "4px 0" }} />
         <MenuRow icon={<X size={14} />} label="Close" onClick={onClose} />
       </div>
+      </>
     );
   }
 
-  // click (shift-click) — comment / describe popover
+  // click — comment / describe popover
   return (
+    <>
+      {sharedKeyframes}
     <div
       ref={rootRef}
       role="dialog"
@@ -186,10 +206,11 @@ export function ElementEditor({ event, onClose, onSubmitEdit }: Props) {
         }}
       />
       <div style={{ marginTop: 6, display: "flex", justifyContent: "flex-end", gap: 6 }}>
-        <button type="button" onClick={onClose} style={btnStyle(false)}>Cancel</button>
-        <button type="button" onClick={submit} disabled={!value.trim()} style={btnStyle(true, !value.trim())}>Apply</button>
+        <button type="button" className="prism-ee-btn" onClick={onClose} style={btnStyle(false)}>Cancel</button>
+        <button type="button" className="prism-ee-btn" onClick={submit} disabled={!value.trim()} style={btnStyle(true, !value.trim())}>Apply</button>
       </div>
     </div>
+    </>
   );
 }
 
@@ -210,6 +231,7 @@ function MenuRow({
       role="menuitem"
       onClick={onClick}
       disabled={disabled}
+      className="prism-ee-row"
       style={{
         display: "flex",
         alignItems: "center",
@@ -224,12 +246,6 @@ function MenuRow({
         fontFamily: "ui-sans-serif, system-ui, sans-serif",
         textAlign: "left",
         borderRadius: 4,
-      }}
-      onMouseEnter={(e) => {
-        if (!disabled) (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.06)";
-      }}
-      onMouseLeave={(e) => {
-        (e.currentTarget as HTMLElement).style.background = "transparent";
       }}
     >
       {icon}
@@ -253,6 +269,9 @@ function popoverBase(x: number, y: number, minWidth: number): React.CSSPropertie
     padding: 8,
     boxShadow: "0 18px 48px rgba(0,0,0,0.6)",
     color: "#fff",
+    animation: "prism-ee-in 140ms cubic-bezier(0.16, 1, 0.3, 1) both",
+    transformOrigin: "top left",
+    willChange: "transform, opacity",
   };
 }
 
