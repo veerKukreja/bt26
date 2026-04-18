@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 9998",
+    "dev:webpack": "next dev -p 9998 --webpack",
     "build": "next build",
     "start": "next start -p 9998",
     "test": "node --import tsx --test lib/export.test.ts lib/env-usage.test.ts lib/language.test.ts lib/print.test.ts lib/snapshots.test.ts app/api/export/html/route.test.ts"
@@ -22,6 +23,7 @@
     "next": "16.2.4",
     "react": "19.2.4",
     "react-dom": "19.2.4",
+    "undici": "^7.25.0",
     "uuid": "^13.0.0"
   },
   "devDependencies": {

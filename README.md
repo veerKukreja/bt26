@@ -57,7 +57,7 @@ The whole screen is the product. No chat sidebar. No IDE chrome.
 |---|---|---|
 | `SERVER_ANTHROPIC_API_KEY` | Server-side Anthropic key for keyless access | unset (falls back to user key / `~/.anthropic-api-key`) |
 | `SERVER_DAILY_COST_CEILING_USD` | Daily spend cap before `/api/generate` returns 503 | `50` |
-| `ANTHROPIC_MODEL` | Override the Claude model | `claude-sonnet-4-5` |
+| `ANTHROPIC_MODEL` | Override the Claude model | `claude-haiku-4-5` |
 | `NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Opt-in persistence | unset |
 
 ## Run locally

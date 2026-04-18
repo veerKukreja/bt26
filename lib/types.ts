@@ -23,6 +23,18 @@ export interface SessionUsage {
   cacheCreationTokens: number;
 }
 
+export interface ActionEntry {
+  id: string;
+  prompt: string;
+  summary: string;
+  kind: "generate" | "fix" | "translate";
+  startedAt: string;
+  durationMs: number;
+  tokens: number;
+  filesCount: number;
+  error?: string;
+}
+
 export interface FeatureInventory {
   summary: string;
   features: Array<{
