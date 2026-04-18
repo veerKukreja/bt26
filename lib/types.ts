@@ -23,3 +23,15 @@ export type GenerateEvent =
   | { type: "file_done"; path: string; contents: string }
   | { type: "done"; files: FileMap; summary: string }
   | { type: "error"; message: string };
+
+export interface FeatureInventory {
+  summary: string;
+  features: Array<{
+    name: string;
+    description: string;
+    priority: "table-stakes" | "differentiator" | "nice-to-have";
+  }>;
+  userFlows: Array<{ name: string; steps: string[] }>;
+  designLanguage: { palette: string[]; typography: string; vibe: string };
+  copyExamples: string[];
+}
