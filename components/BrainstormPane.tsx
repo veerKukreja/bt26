@@ -35,7 +35,7 @@ export function BrainstormPane({
         references={references}
         onChange={onReferencesChange}
       />
-      <WriteupPanel writeup={writeup} onChange={onWriteupChange} />
+      <WriteupPanel writeup={writeup} onChange={onWriteupChange} references={references} />
     </div>
   );
 }
