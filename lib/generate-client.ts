@@ -1,4 +1,4 @@
-import type { FileMap, SessionUsage } from "./types";
+import type { FileMap, SessionUsage, WriteUp } from "./types";
 
 export interface GenerateCallbacks {
   onToolStart?: () => void;
@@ -9,13 +9,17 @@ export interface GenerateCallbacks {
   onError: (message: string) => void;
 }
 
+export interface StreamGenerateArgs {
+  prompt: string;
+  currentFiles: FileMap;
+  errorContext?: string;
+  translate?: { toLanguage: string };
+  writeup?: WriteUp;
+  signal?: AbortSignal;
+}
+
 export async function streamGenerate(
-  args: {
-    prompt: string;
-    currentFiles: FileMap;
-    errorContext?: string;
-    signal?: AbortSignal;
-  },
+  args: StreamGenerateArgs,
   cb: GenerateCallbacks,
 ): Promise<void> {
   const res = await fetch("/api/generate", {
@@ -25,11 +29,23 @@ export async function streamGenerate(
       prompt: args.prompt,
       currentFiles: args.currentFiles,
       errorContext: args.errorContext,
+      translate: args.translate,
+      writeup: args.writeup,
     }),
     signal: args.signal,
   });
 
   if (!res.ok || !res.body) {
+    try {
+      const body = await res.text();
+      const parsed = JSON.parse(body);
+      if (parsed && typeof parsed === "object" && typeof parsed.error === "string") {
+        cb.onError(parsed.error);
+        return;
+      }
+    } catch {
+      /* fall through */
+    }
     cb.onError(`HTTP ${res.status}`);
     return;
   }

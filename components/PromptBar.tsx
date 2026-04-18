@@ -10,6 +10,10 @@ import {
   Check,
   GitFork,
   Layers,
+  Mic,
+  MicOff,
+  Languages,
+  Printer,
 } from "lucide-react";
 import { HoverCard } from "./HoverCard";
 import { computeUsage, isZeroUsage } from "@/lib/env-usage";
@@ -21,7 +25,10 @@ import {
   copyToClipboard,
   exportFilename,
 } from "@/lib/export";
-import type { FileMap, SessionUsage, Snapshot } from "@/lib/types";
+import { printCurrentSession } from "@/lib/print";
+import { speechLangCode } from "@/lib/language";
+import type { SupportedLang } from "@/lib/i18n";
+import type { FileMap, SessionUsage, Snapshot, WriteUp } from "@/lib/types";
 
 export type Status =
   | { kind: "idle" }
@@ -32,6 +39,7 @@ export type Status =
 
 interface Props {
   onSubmit: (prompt: string) => void;
+  onTranslate?: (toLanguage: string) => void;
   status: Status;
   disabled: boolean;
   usage?: SessionUsage;
@@ -40,7 +48,40 @@ interface Props {
   onScrub: (index: number) => void;
   onFork: () => Promise<string | null>;
   currentFiles: FileMap;
+  lang?: SupportedLang;
+  mode?: "build" | "brainstorm";
+  writeup?: WriteUp | null;
 }
+
+interface SpeechRecognitionLike {
+  lang: string;
+  interimResults: boolean;
+  continuous: boolean;
+  onresult: ((e: SpeechRecognitionEventLike) => void) | null;
+  onerror: ((e: unknown) => void) | null;
+  onend: (() => void) | null;
+  start(): void;
+  stop(): void;
+}
+
+interface SpeechRecognitionEventLike {
+  resultIndex: number;
+  results: {
+    length: number;
+    [i: number]: { isFinal: boolean; [i: number]: { transcript: string } };
+  };
+}
+
+const TRANSLATE_LANGS: Array<{ code: SupportedLang; label: string }> = [
+  { code: "en", label: "English" },
+  { code: "es", label: "Español" },
+  { code: "ht", label: "Kreyòl" },
+  { code: "zh", label: "中文" },
+  { code: "ar", label: "العربية" },
+  { code: "bn", label: "বাংলা" },
+  { code: "fr", label: "Français" },
+  { code: "ru", label: "Русский" },
+];
 
 type BusyKey = "zip" | "html" | "csb" | null;
 
@@ -63,6 +104,7 @@ function relativeTime(iso: string): string {
 
 export function PromptBar({
   onSubmit,
+  onTranslate,
   status,
   disabled,
   usage,
@@ -71,9 +113,21 @@ export function PromptBar({
   onScrub,
   onFork,
   currentFiles,
+  lang = "en",
+  mode = "build",
+  writeup,
 }: Props) {
   const [value, setValue] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const [speechAvailable, setSpeechAvailable] = useState(false);
+  const [listening, setListening] = useState(false);
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+
+  const translateRef = useRef<HTMLButtonElement>(null);
+  const [translateOpen, setTranslateOpen] = useState(false);
+
+  const [printing, setPrinting] = useState(false);
 
   const trackerRef = useRef<HTMLButtonElement>(null);
   const [methodologyOpen, setMethodologyOpen] = useState(false);
@@ -110,6 +164,12 @@ export function PromptBar({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const w = window as unknown as { SpeechRecognition?: unknown; webkitSpeechRecognition?: unknown };
+    setSpeechAvailable(Boolean(w.SpeechRecognition || w.webkitSpeechRecognition));
   }, []);
 
   useEffect(() => {
@@ -159,6 +219,72 @@ export function PromptBar({
   const showToast = (message: string) => {
     setToast(message);
     scheduleTransient(() => setToast(null), 4000);
+  };
+
+  const toggleMic = () => {
+    if (!speechAvailable || typeof window === "undefined") return;
+    if (listening) {
+      recognitionRef.current?.stop();
+      setListening(false);
+      return;
+    }
+    const Ctor = (window as unknown as { SpeechRecognition?: new () => SpeechRecognitionLike; webkitSpeechRecognition?: new () => SpeechRecognitionLike }).SpeechRecognition
+      ?? (window as unknown as { webkitSpeechRecognition?: new () => SpeechRecognitionLike }).webkitSpeechRecognition;
+    if (!Ctor) return;
+    const rec = new Ctor();
+    rec.lang = speechLangCode(lang);
+    rec.interimResults = true;
+    rec.continuous = false;
+    let silenceTimer: ReturnType<typeof setTimeout> | null = null;
+    const scheduleStop = () => {
+      if (silenceTimer) clearTimeout(silenceTimer);
+      silenceTimer = setTimeout(() => rec.stop(), 1500);
+    };
+    rec.onresult = (e: SpeechRecognitionEventLike) => {
+      let interim = "";
+      let final = "";
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const r = e.results[i];
+        if (r.isFinal) final += r[0].transcript;
+        else interim += r[0].transcript;
+      }
+      setValue((prev) => {
+        const base = prev.replace(/[\u0001]?$/, "");
+        return final ? `${base}${final}`.trim() : `${base} ${interim}`.trim();
+      });
+      scheduleStop();
+    };
+    rec.onerror = () => setListening(false);
+    rec.onend = () => {
+      if (silenceTimer) clearTimeout(silenceTimer);
+      setListening(false);
+      recognitionRef.current = null;
+    };
+    recognitionRef.current = rec;
+    try {
+      rec.start();
+      setListening(true);
+      scheduleStop();
+    } catch {
+      setListening(false);
+    }
+  };
+
+  const handleTranslate = (toLanguage: string) => {
+    setTranslateOpen(false);
+    if (onTranslate) onTranslate(toLanguage);
+  };
+
+  const handlePrint = async () => {
+    if (printing) return;
+    setPrinting(true);
+    try {
+      await printCurrentSession(currentFiles, { paperSize: "letter" });
+    } catch (e) {
+      showToast(`Print failed: ${(e as Error).message}`);
+    } finally {
+      setPrinting(false);
+    }
   };
 
   const activeSnap = snapshots[currentIndex];
@@ -439,6 +565,37 @@ export function PromptBar({
           <Download size={16} />
         </button>
 
+        {onTranslate && (
+          <button
+            type="button"
+            ref={translateRef}
+            onClick={() => {
+              setTranslateOpen((o) => !o);
+              setExportOpen(false);
+              setVersionsOpen(false);
+            }}
+            disabled={disabled}
+            aria-label="Translate"
+            aria-haspopup="menu"
+            aria-expanded={translateOpen}
+            style={iconBtn({ active: translateOpen })}
+            title="Translate generated page"
+          >
+            <Languages size={16} />
+          </button>
+        )}
+
+        <button
+          type="button"
+          onClick={handlePrint}
+          disabled={disabled || printing}
+          aria-label={printing ? "Preparing print…" : "Print"}
+          style={iconBtn()}
+          title="Print this page"
+        >
+          {printing ? <Loader2 size={15} className="spin" /> : <Printer size={15} />}
+        </button>
+
         <button
           type="button"
           onClick={handleFork}
@@ -471,6 +628,23 @@ export function PromptBar({
           )}
         </button>
 
+        {speechAvailable && (
+          <button
+            type="button"
+            onClick={toggleMic}
+            disabled={disabled}
+            aria-label={listening ? "Stop recording" : "Start voice input"}
+            aria-pressed={listening}
+            style={{
+              ...iconBtn({ active: listening }),
+              color: listening ? "#ff6b6b" : "rgba(255,255,255,0.75)",
+            }}
+            title={listening ? "Recording — click to stop" : "Voice input"}
+          >
+            {listening ? <Mic size={16} className="pulse" /> : <MicOff size={16} />}
+          </button>
+        )}
+
         <button
           type="submit"
           disabled={disabled || !value.trim()}
@@ -492,7 +666,13 @@ export function PromptBar({
             fontSize: 16,
             marginLeft: 4,
           }}
-          aria-label="Generate"
+          aria-label={
+            mode === "brainstorm" && writeup
+              ? "Build from brainstorm"
+              : disabled
+                ? "Generating"
+                : "Generate"
+          }
         >
           ↑
         </button>
@@ -746,6 +926,39 @@ export function PromptBar({
         </div>
       )}
 
+      {/* Translate dropdown */}
+      {onTranslate && (
+        <HoverCard
+          anchorRef={translateRef}
+          open={translateOpen}
+          placement="top"
+          onRequestClose={() => setTranslateOpen(false)}
+        >
+          <div role="menu" aria-label="Translate to" style={{ minWidth: 200, maxHeight: 320, overflowY: "auto" }}>
+            <div style={{
+              fontFamily: "ui-monospace, monospace",
+              fontSize: 10,
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+              color: "rgba(255,255,255,0.5)",
+              marginBottom: 6,
+              padding: "0 8px",
+            }}>Translate to</div>
+            {TRANSLATE_LANGS.map((l) => (
+              <button
+                key={l.code}
+                type="button"
+                role="menuitem"
+                onClick={() => handleTranslate(l.label)}
+                style={dropdownItemStyle(false)}
+              >
+                {l.label}
+              </button>
+            ))}
+          </div>
+        </HoverCard>
+      )}
+
       {/* Toast */}
       {toast && (
         <div
@@ -777,6 +990,8 @@ export function PromptBar({
         }
         @keyframes spin { to { transform: rotate(360deg); } }
         .spin { animation: spin 0.9s linear infinite; }
+        @keyframes mic-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+        .pulse { animation: mic-pulse 1.2s ease-in-out infinite; }
       `}</style>
     </div>
   );

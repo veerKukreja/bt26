@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Prism } from "@/components/Prism";
 import { DEFAULT_APP } from "@/lib/default-app";
 import { loadSession } from "@/lib/snapshots";
@@ -8,6 +9,27 @@ export const dynamic = "force-dynamic";
 
 interface Params {
   sessionId: string;
+}
+
+export async function generateMetadata({ params }: { params: Promise<Params> }): Promise<Metadata> {
+  const { sessionId } = await params;
+  const ogUrl = `/og/${sessionId}`;
+  return {
+    title: "Prism",
+    description: "A self-modifying website. Tell this page what to become.",
+    openGraph: {
+      title: "Prism",
+      description: "A self-modifying website. Tell this page what to become.",
+      type: "website",
+      images: [{ url: ogUrl, width: 1200, height: 630 }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: "Prism",
+      description: "A self-modifying website. Tell this page what to become.",
+      images: [ogUrl],
+    },
+  };
 }
 
 export default async function SessionPage({

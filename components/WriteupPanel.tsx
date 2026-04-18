@@ -1,13 +1,6 @@
 "use client";
 
-// TODO-for-integration: replace local WriteUp alias with the real `WriteUp`
-// type from `lib/types.ts` once P2 lands it. Keep the prop shape identical so
-// no call-site changes are needed.
-type WriteUp = {
-  title?: string;
-  body?: string;
-  [key: string]: unknown;
-};
+import type { WriteUp } from "@/lib/types";
 
 export interface WriteupPanelProps {
   writeup: WriteUp | null;

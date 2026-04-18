@@ -1,13 +1,6 @@
 "use client";
 
-// TODO-for-integration: replace local FeatureInventory alias with the real
-// `FeatureInventory` type from `lib/types.ts` once P1 lands it. Keep the prop
-// shape identical so no call-site changes are needed.
-type FeatureInventory = {
-  id?: string;
-  title?: string;
-  [key: string]: unknown;
-};
+import type { FeatureInventory } from "@/lib/types";
 
 export interface ReferencesPanelProps {
   references: FeatureInventory[];
@@ -89,13 +82,10 @@ export function ReferencesPanel({ references, onChange }: ReferencesPanelProps) 
           }}
         >
           {references.map((ref, i) => {
-            const key =
-              typeof ref.id === "string" && ref.id.length > 0
-                ? ref.id
-                : `ref-${i}`;
+            const key = `ref-${i}`;
             const label =
-              typeof ref.title === "string" && ref.title.length > 0
-                ? ref.title
+              typeof ref.summary === "string" && ref.summary.length > 0
+                ? ref.summary
                 : JSON.stringify(ref);
             return (
               <li

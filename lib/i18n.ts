@@ -611,35 +611,43 @@ const LanguageContext = createContext<LanguageContextValue | null>(null);
 
 interface LanguageProviderProps {
   initialLang?: string;
+  lang?: SupportedLang;
+  onLangChange?: (lang: SupportedLang) => void;
   children: ReactNode;
 }
 
 /**
  * Wraps a subtree with a mutable language. Accepts any string for
  * `initialLang`; unsupported codes are coerced to `"en"`.
+ *
+ * Can operate in controlled mode if `lang` + `onLangChange` are supplied.
  */
 export function LanguageProvider({
   initialLang = "en",
+  lang: controlledLang,
+  onLangChange,
   children,
 }: LanguageProviderProps) {
-  const [lang, setLangState] = useState<SupportedLang>(() =>
+  const [internalLang, setLangState] = useState<SupportedLang>(() =>
     (SUPPORTED_LANGS as readonly string[]).includes(initialLang)
       ? (initialLang as SupportedLang)
       : "en",
   );
 
+  const effectiveLang: SupportedLang = controlledLang ?? internalLang;
+
   const value = useMemo<LanguageContextValue>(
     () => ({
-      lang,
+      lang: effectiveLang,
       setLang: (next: string) => {
-        if ((SUPPORTED_LANGS as readonly string[]).includes(next)) {
-          setLangState(next as SupportedLang);
-        } else {
-          setLangState("en");
-        }
+        const safe: SupportedLang = (SUPPORTED_LANGS as readonly string[]).includes(next)
+          ? (next as SupportedLang)
+          : "en";
+        if (controlledLang === undefined) setLangState(safe);
+        onLangChange?.(safe);
       },
     }),
-    [lang],
+    [effectiveLang, controlledLang, onLangChange],
   );
 
   return createElement(LanguageContext.Provider, { value }, children);
