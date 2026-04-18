@@ -92,6 +92,11 @@ export function Prism({ sessionId, initialSnapshots, persistEnabled }: Props) {
     if (local && Array.isArray(local) && local.length > 0) {
       setSnapshots(local);
       setCurrentIndex(local.length - 1);
+      // Force Sandpack to remount so the hydrated files replace the
+      // server-rendered fallback (otherwise the bouncing-dot DEFAULT_APP
+      // stays on screen until the next mode toggle).
+      setVersionKey((k) => k + 1);
+      lastGoodFilesRef.current = local[local.length - 1]?.files ?? DEFAULT_APP;
     }
 
     const refs = readJson<FeatureInventory[]>(REFS_KEY(sessionId), storage);
