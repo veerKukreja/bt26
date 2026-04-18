@@ -175,6 +175,7 @@ export async function POST(req: NextRequest) {
         });
 
         const client = resolveAnthropicClient();
+        const t0 = Date.now();
         const response = await client.messages.create({
           model: MODEL,
           max_tokens: 8000,
@@ -203,6 +204,9 @@ export async function POST(req: NextRequest) {
           cacheReadTokens: 0,
           cacheCreationTokens: 0,
         };
+        console.log(`/api/generate: stream opened in ${Date.now() - t0}ms`);
+        let firstDelta = 0;
+        let deltaCount = 0;
 
         for await (const event of response) {
           if (event.type === "message_start") {
@@ -231,6 +235,11 @@ export async function POST(req: NextRequest) {
           } else if (event.type === "content_block_delta") {
             const d = event.delta;
             if (d.type === "input_json_delta") {
+              if (firstDelta === 0) {
+                firstDelta = Date.now();
+                console.log(`/api/generate: first delta at ${firstDelta - t0}ms`);
+              }
+              deltaCount++;
               accumulatedJson += d.partial_json;
               send("progress", {
                 chars: accumulatedJson.length,
