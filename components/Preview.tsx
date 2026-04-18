@@ -61,47 +61,19 @@ const PRISM_EDITOR_INDEX_TSX = `import React from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
 
-class PrismBoundary extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = { err: null };
-  }
-  static getDerivedStateFromError(err) { return { err: err }; }
-  componentDidCatch(err) {
-    try { console.error("[prism-editor] App render error:", err); } catch (_) {}
-  }
-  render() {
-    if (this.state.err) {
-      return React.createElement("div", {
-        style: {
-          padding: 24,
-          fontFamily: "ui-monospace, monospace",
-          fontSize: 13,
-          color: "#b33",
-          background: "#fff8f8",
-          minHeight: "100vh",
-          whiteSpace: "pre-wrap",
-        },
-      }, "[Prism] Component failed to render:\\n\\n" + String(this.state.err && this.state.err.message || this.state.err));
-    }
-    return this.props.children;
-  }
-}
+try { console.log("[prism] /index.tsx loaded"); } catch (_) {}
 
 const rootEl = document.getElementById("root");
-if (rootEl) {
+if (!rootEl) {
+  document.body.innerHTML = '<div style="padding:24px;font-family:ui-monospace,monospace;color:#b33">[Prism] No #root element found in host HTML.</div>';
+} else {
   try {
-    createRoot(rootEl).render(React.createElement(PrismBoundary, null, React.createElement(App)));
-    try { console.log("[prism-editor] render scheduled"); } catch (_) {}
+    createRoot(rootEl).render(<App />);
+    try { console.log("[prism] render scheduled"); } catch (_) {}
   } catch (e) {
-    try { console.error("[prism-editor] createRoot failed:", e); } catch (_) {}
-    rootEl.innerHTML = '<div style="padding:24px;font-family:ui-monospace,monospace;color:#b33;background:#fff8f8;min-height:100vh">[Prism] createRoot failed: ' + String(e) + '</div>';
+    try { console.error("[prism] createRoot failed:", e); } catch (_) {}
+    rootEl.innerHTML = '<div style="padding:24px;font-family:ui-monospace,monospace;color:#b33">[Prism] createRoot failed: ' + String(e) + '</div>';
   }
-  setTimeout(function () {
-    if (rootEl.children.length === 0 && !rootEl.textContent) {
-      rootEl.innerHTML = '<div style="padding:24px;font-family:ui-monospace,monospace;color:#555;background:#f5f5f5;min-height:100vh">[Prism] Preview is empty after render. The App component returned nothing, or failed silently. Check iframe console.</div>';
-    }
-  }, 800);
 }
 
 // PRISM_EDITOR_INSTALL — outer UI consumes the messages from here.
@@ -248,7 +220,7 @@ export function Preview({ files, versionKey, onError, onReady }: PreviewProps) {
           showRefreshButton={false}
           showRestartButton={false}
           showNavigator={false}
-          showSandpackErrorOverlay={false}
+          showSandpackErrorOverlay={true}
           style={{ height: "100%", width: "100%", border: "none" }}
         />
         <ErrorBridge onError={onError} onReady={onReady} />
