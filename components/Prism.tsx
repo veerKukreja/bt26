@@ -4,9 +4,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Preview } from "./Preview";
 import { PromptBar, type Status } from "./PromptBar";
-import { Timeline } from "./Timeline";
-import { ForkButton } from "./ForkButton";
-import { ExportButton } from "./ExportButton";
 import { streamGenerate } from "@/lib/generate-client";
 import { DEFAULT_APP } from "@/lib/default-app";
 import { EMPTY_USAGE, accumulateUsage } from "@/lib/env-usage";
@@ -408,20 +405,18 @@ export function Prism({ sessionId, initialSnapshots, persistEnabled }: Props) {
           }}
         />
       )}
-      <ExportButton
-        files={currentFiles}
-        summary={snapshots[currentIndex]?.summary || snapshots[currentIndex]?.prompt || "Prism"}
-        snapshotId={snapshots[currentIndex]?.id ?? sessionId}
+      {onBlankCanvas && <OnboardingHint />}
+      <PromptBar
+        onSubmit={submit}
+        status={status}
         disabled={busy}
-      />
-      <ForkButton onFork={handleFork} disabled={busy} />
-      <Timeline
+        usage={sessionUsage}
         snapshots={snapshots}
         currentIndex={currentIndex}
         onScrub={scrub}
+        onFork={handleFork}
+        currentFiles={currentFiles}
       />
-      {onBlankCanvas && <OnboardingHint />}
-      <PromptBar onSubmit={submit} status={status} disabled={busy} usage={sessionUsage} />
       <style>{`
         @keyframes prism-shimmer {
           0% { background-position: 200% 0; }

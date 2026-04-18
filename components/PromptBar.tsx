@@ -1,9 +1,27 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import {
+  Download,
+  FileArchive,
+  FileCode,
+  Link as LinkIcon,
+  Loader2,
+  Check,
+  GitFork,
+  Layers,
+} from "lucide-react";
 import { HoverCard } from "./HoverCard";
 import { computeUsage, isZeroUsage } from "@/lib/env-usage";
-import type { SessionUsage } from "@/lib/types";
+import {
+  buildZip,
+  buildCodeSandboxUrl,
+  requestHtmlBundle,
+  triggerDownload,
+  copyToClipboard,
+  exportFilename,
+} from "@/lib/export";
+import type { FileMap, SessionUsage, Snapshot } from "@/lib/types";
 
 export type Status =
   | { kind: "idle" }
@@ -17,7 +35,14 @@ interface Props {
   status: Status;
   disabled: boolean;
   usage?: SessionUsage;
+  snapshots: Snapshot[];
+  currentIndex: number;
+  onScrub: (index: number) => void;
+  onFork: () => Promise<string | null>;
+  currentFiles: FileMap;
 }
+
+type BusyKey = "zip" | "html" | "csb" | null;
 
 function formatNumber(n: number): string {
   if (n < 1) return n.toFixed(2);
@@ -25,11 +50,45 @@ function formatNumber(n: number): string {
   return Math.round(n).toString();
 }
 
-export function PromptBar({ onSubmit, status, disabled, usage }: Props) {
+function relativeTime(iso: string): string {
+  const now = Date.now();
+  const then = new Date(iso).getTime();
+  const s = Math.max(1, Math.round((now - then) / 1000));
+  if (s < 60) return `${s}s ago`;
+  const m = Math.round(s / 60);
+  if (m < 60) return `${m}m ago`;
+  const h = Math.round(m / 60);
+  return `${h}h ago`;
+}
+
+export function PromptBar({
+  onSubmit,
+  status,
+  disabled,
+  usage,
+  snapshots,
+  currentIndex,
+  onScrub,
+  onFork,
+  currentFiles,
+}: Props) {
   const [value, setValue] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+
   const trackerRef = useRef<HTMLButtonElement>(null);
   const [methodologyOpen, setMethodologyOpen] = useState(false);
+
+  const versionsRef = useRef<HTMLButtonElement>(null);
+  const [versionsOpen, setVersionsOpen] = useState(false);
+
+  const exportRef = useRef<HTMLButtonElement>(null);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exportBusy, setExportBusy] = useState<BusyKey>(null);
+  const [exportDone, setExportDone] = useState<BusyKey>(null);
+
+  const [forkState, setForkState] = useState<"idle" | "forking" | "copied">("idle");
+
+  const [toast, setToast] = useState<string | null>(null);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -42,11 +101,112 @@ export function PromptBar({ onSubmit, status, disabled, usage }: Props) {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  useEffect(() => {
+    if (!exportOpen && !versionsOpen) return;
+    const onClick = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (exportRef.current && !exportRef.current.contains(target)) {
+        setExportOpen(false);
+      }
+      if (versionsRef.current && !versionsRef.current.contains(target)) {
+        setVersionsOpen(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setExportOpen(false);
+        setVersionsOpen(false);
+      }
+    };
+    window.addEventListener("mousedown", onClick);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("mousedown", onClick);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [exportOpen, versionsOpen]);
+
   const submit = () => {
     const v = value.trim();
     if (!v || disabled) return;
     onSubmit(v);
     setValue("");
+  };
+
+  const showToast = (message: string) => {
+    setToast(message);
+    setTimeout(() => setToast(null), 4000);
+  };
+
+  const activeSnap = snapshots[currentIndex];
+  const activeSummary = activeSnap?.summary || activeSnap?.prompt || "Prism";
+  const activeId = activeSnap?.id ?? "origin";
+
+  const doZip = async (files: FileMap, summary: string, id: string) => {
+    setExportBusy("zip");
+    try {
+      const blob = await buildZip(files, { summary, id });
+      triggerDownload(blob, exportFilename({ summary, id }, "zip"));
+    } catch (e) {
+      showToast(`Export failed: ${(e as Error).message}`);
+    } finally {
+      setExportBusy(null);
+      setExportOpen(false);
+    }
+  };
+
+  const doHtml = async (files: FileMap, summary: string, id: string) => {
+    setExportBusy("html");
+    try {
+      const blob = await requestHtmlBundle(files, summary);
+      triggerDownload(blob, exportFilename({ summary, id }, "html"));
+    } catch (e) {
+      showToast(`Export failed: ${(e as Error).message}`);
+    } finally {
+      setExportBusy(null);
+      setExportOpen(false);
+    }
+  };
+
+  const doCsb = async (files: FileMap, summary: string, id: string) => {
+    setExportBusy("csb");
+    try {
+      const { url, overflow } = buildCodeSandboxUrl(files);
+      if (overflow) {
+        const blob = await buildZip(files, { summary, id });
+        triggerDownload(blob, exportFilename({ summary, id }, "zip"));
+        showToast("Too large for CodeSandbox — downloaded .zip instead.");
+      } else {
+        const ok = await copyToClipboard(url);
+        if (ok) {
+          setExportDone("csb");
+          setTimeout(() => setExportDone(null), 1500);
+        } else {
+          showToast(`Couldn't copy — URL: ${url}`);
+        }
+      }
+    } catch (e) {
+      showToast(`Export failed: ${(e as Error).message}`);
+    } finally {
+      setExportBusy(null);
+    }
+  };
+
+  const handleFork = async () => {
+    if (disabled || forkState !== "idle") return;
+    setForkState("forking");
+    const url = await onFork();
+    if (url) {
+      try {
+        await navigator.clipboard.writeText(url);
+      } catch {
+        /* ignore */
+      }
+      setForkState("copied");
+      setTimeout(() => setForkState("idle"), 1800);
+    } else {
+      setForkState("idle");
+    }
   };
 
   const statusLabel = (() => {
@@ -66,6 +226,53 @@ export function PromptBar({ onSubmit, status, disabled, usage }: Props) {
 
   const busy = status.kind === "generating" || status.kind === "fixing";
 
+  const pillBtn = (opts: { active?: boolean; muted?: boolean } = {}): React.CSSProperties => ({
+    background: opts.active ? "rgba(255,255,255,0.08)" : "transparent",
+    border: "none",
+    cursor: "pointer",
+    padding: "6px 10px",
+    fontSize: 11,
+    fontFamily: "ui-monospace, monospace",
+    color: opts.muted ? "rgba(255,255,255,0.45)" : "rgba(255,255,255,0.75)",
+    whiteSpace: "nowrap",
+    letterSpacing: "0.06em",
+    textTransform: "uppercase",
+    borderRadius: 6,
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
+    height: 28,
+  });
+
+  const iconBtn = (opts: { active?: boolean } = {}): React.CSSProperties => ({
+    width: 32,
+    height: 32,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    background: opts.active ? "rgba(255,255,255,0.08)" : "transparent",
+    border: "none",
+    borderRadius: 6,
+    color: "rgba(255,255,255,0.75)",
+    cursor: "pointer",
+  });
+
+  const dropdownItemStyle = (active: boolean): React.CSSProperties => ({
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    width: "100%",
+    padding: "8px 12px",
+    background: active ? "rgba(255,255,255,0.06)" : "transparent",
+    border: "none",
+    color: "rgba(255,255,255,0.9)",
+    fontSize: 13,
+    fontFamily: "ui-sans-serif, system-ui, sans-serif",
+    cursor: "pointer",
+    textAlign: "left",
+    borderRadius: 6,
+  });
+
   return (
     <div
       style={{
@@ -74,7 +281,7 @@ export function PromptBar({ onSubmit, status, disabled, usage }: Props) {
         bottom: 28,
         transform: "translateX(-50%)",
         zIndex: 50,
-        width: "min(720px, calc(100vw - 48px))",
+        width: "min(880px, calc(100vw - 48px))",
       }}
     >
       {statusLabel && (
@@ -120,14 +327,14 @@ export function PromptBar({ onSubmit, status, disabled, usage }: Props) {
         style={{
           display: "flex",
           alignItems: "center",
+          gap: 4,
           background: "rgba(18,18,22,0.78)",
           backdropFilter: "blur(24px) saturate(180%)",
           WebkitBackdropFilter: "blur(24px) saturate(180%)",
           border: "1px solid rgba(255,255,255,0.12)",
           borderRadius: 999,
-          padding: "6px 8px 6px 22px",
-          boxShadow:
-            "0 10px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04) inset",
+          padding: "6px 8px",
+          boxShadow: "0 10px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04) inset",
         }}
       >
         {usage && !isZeroUsage(usage) && (() => {
@@ -138,27 +345,29 @@ export function PromptBar({ onSubmit, status, disabled, usage }: Props) {
               ref={trackerRef}
               onClick={() => setMethodologyOpen((o) => !o)}
               aria-label="Environmental usage — click for methodology"
-              style={{
-                background: "transparent",
-                border: "none",
-                cursor: "pointer",
-                padding: "0 12px 0 0",
-                fontSize: 11,
-                fontFamily: "ui-monospace, monospace",
-                color: "rgba(255,255,255,0.45)",
-                whiteSpace: "nowrap",
-                letterSpacing: "0.04em",
-                borderRight: "1px solid rgba(255,255,255,0.08)",
-                marginRight: 10,
-                alignSelf: "stretch",
-                display: "flex",
-                alignItems: "center",
-              }}
+              style={pillBtn({ muted: true })}
             >
               {formatNumber(energyWh)} Wh · {formatNumber(waterMl)} mL
             </button>
           );
         })()}
+
+        {snapshots.length > 1 && (
+          <button
+            type="button"
+            ref={versionsRef}
+            onClick={() => {
+              setVersionsOpen((o) => !o);
+              setExportOpen(false);
+            }}
+            aria-label="Versions"
+            style={pillBtn({ active: versionsOpen })}
+          >
+            <Layers size={12} />
+            v{currentIndex + 1}/{snapshots.length}
+          </button>
+        )}
+
         <input
           ref={inputRef}
           value={value}
@@ -177,10 +386,52 @@ export function PromptBar({ onSubmit, status, disabled, usage }: Props) {
             color: "#fff",
             fontSize: 15,
             fontFamily: "ui-sans-serif, system-ui, sans-serif",
-            padding: "14px 12px 14px 0",
+            padding: "8px 12px",
             letterSpacing: "-0.01em",
+            minWidth: 0,
           }}
         />
+
+        <button
+          type="button"
+          ref={exportRef}
+          onClick={() => {
+            setExportOpen((o) => !o);
+            setVersionsOpen(false);
+          }}
+          disabled={disabled && !exportOpen}
+          aria-label="Export"
+          style={iconBtn({ active: exportOpen })}
+        >
+          <Download size={16} />
+        </button>
+
+        <button
+          type="button"
+          onClick={handleFork}
+          disabled={disabled || forkState !== "idle"}
+          aria-label="Fork"
+          style={{
+            ...iconBtn(),
+            color: forkState === "copied" ? "#8eff8e" : "rgba(255,255,255,0.75)",
+          }}
+          title={
+            forkState === "forking"
+              ? "forking…"
+              : forkState === "copied"
+                ? "URL copied"
+                : "Fork to new URL"
+          }
+        >
+          {forkState === "forking" ? (
+            <Loader2 size={15} className="spin" />
+          ) : forkState === "copied" ? (
+            <Check size={15} />
+          ) : (
+            <GitFork size={15} />
+          )}
+        </button>
+
         <button
           type="submit"
           disabled={disabled || !value.trim()}
@@ -200,12 +451,15 @@ export function PromptBar({ onSubmit, status, disabled, usage }: Props) {
             justifyContent: "center",
             transition: "all 120ms ease",
             fontSize: 16,
+            marginLeft: 4,
           }}
           aria-label="Generate"
         >
           ↑
         </button>
       </form>
+
+      {/* Methodology popup */}
       {usage && !isZeroUsage(usage) && (
         <HoverCard
           anchorRef={trackerRef}
@@ -273,11 +527,201 @@ export function PromptBar({ onSubmit, status, disabled, usage }: Props) {
           </div>
         </HoverCard>
       )}
+
+      {/* Versions dropdown */}
+      {versionsOpen && snapshots.length > 1 && (
+        <div
+          style={{
+            position: "absolute",
+            bottom: "calc(100% + 10px)",
+            left: 0,
+            maxHeight: 320,
+            overflowY: "auto",
+            width: "min(560px, 100%)",
+            background: "rgba(18,18,22,0.95)",
+            backdropFilter: "blur(24px)",
+            WebkitBackdropFilter: "blur(24px)",
+            border: "1px solid rgba(255,255,255,0.08)",
+            borderRadius: 12,
+            padding: 6,
+            boxShadow: "0 14px 40px rgba(0,0,0,0.6)",
+          }}
+        >
+          {snapshots.map((snap, i) => {
+            const isActive = i === currentIndex;
+            const snapSummary = snap.summary || snap.prompt || "Untitled";
+            return (
+              <div
+                key={snap.id}
+                style={{
+                  ...dropdownItemStyle(isActive),
+                  justifyContent: "space-between",
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => {
+                    onScrub(i);
+                    setVersionsOpen(false);
+                  }}
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    background: "transparent",
+                    border: "none",
+                    color: "inherit",
+                    cursor: "pointer",
+                    textAlign: "left",
+                    padding: 0,
+                  }}
+                >
+                  <div style={{
+                    fontFamily: "ui-monospace, monospace",
+                    fontSize: 10,
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                    color: isActive ? "rgba(255,255,255,0.75)" : "rgba(255,255,255,0.45)",
+                    marginBottom: 2,
+                  }}>
+                    v{i + 1} · {relativeTime(snap.createdAt)}
+                    {isActive && <span style={{ marginLeft: 8 }}>· current</span>}
+                  </div>
+                  <div style={{
+                    fontSize: 12,
+                    color: "rgba(255,255,255,0.82)",
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                  }}>
+                    {snapSummary}
+                  </div>
+                </button>
+                <div style={{ display: "flex", gap: 2, flexShrink: 0, marginLeft: 10 }}>
+                  <button
+                    type="button"
+                    onClick={() => doZip(snap.files, snapSummary, snap.id)}
+                    title="Download .zip"
+                    style={{
+                      width: 26, height: 26, border: "none", background: "transparent",
+                      color: "rgba(255,255,255,0.6)", cursor: "pointer", borderRadius: 4,
+                      display: "inline-flex", alignItems: "center", justifyContent: "center",
+                    }}
+                  >
+                    <FileArchive size={13} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => doHtml(snap.files, snapSummary, snap.id)}
+                    title="Download .html"
+                    style={{
+                      width: 26, height: 26, border: "none", background: "transparent",
+                      color: "rgba(255,255,255,0.6)", cursor: "pointer", borderRadius: 4,
+                      display: "inline-flex", alignItems: "center", justifyContent: "center",
+                    }}
+                  >
+                    <FileCode size={13} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => doCsb(snap.files, snapSummary, snap.id)}
+                    title="Copy CodeSandbox link"
+                    style={{
+                      width: 26, height: 26, border: "none", background: "transparent",
+                      color: "rgba(255,255,255,0.6)", cursor: "pointer", borderRadius: 4,
+                      display: "inline-flex", alignItems: "center", justifyContent: "center",
+                    }}
+                  >
+                    <LinkIcon size={13} />
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Export dropdown */}
+      {exportOpen && (
+        <div
+          style={{
+            position: "absolute",
+            bottom: "calc(100% + 10px)",
+            right: 88,
+            minWidth: 220,
+            background: "rgba(18,18,22,0.95)",
+            backdropFilter: "blur(24px)",
+            WebkitBackdropFilter: "blur(24px)",
+            border: "1px solid rgba(255,255,255,0.08)",
+            borderRadius: 12,
+            padding: 6,
+            boxShadow: "0 14px 40px rgba(0,0,0,0.6)",
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => doZip(currentFiles, activeSummary, activeId)}
+            disabled={exportBusy !== null}
+            style={dropdownItemStyle(exportBusy === "zip")}
+          >
+            {exportBusy === "zip" ? <Loader2 size={14} className="spin" /> : <FileArchive size={14} />}
+            Download .zip
+          </button>
+          <button
+            type="button"
+            onClick={() => doHtml(currentFiles, activeSummary, activeId)}
+            disabled={exportBusy !== null}
+            style={dropdownItemStyle(exportBusy === "html")}
+          >
+            {exportBusy === "html" ? <Loader2 size={14} className="spin" /> : <FileCode size={14} />}
+            Download .html
+          </button>
+          <button
+            type="button"
+            onClick={() => doCsb(currentFiles, activeSummary, activeId)}
+            disabled={exportBusy !== null}
+            style={dropdownItemStyle(exportBusy === "csb" || exportDone === "csb")}
+          >
+            {exportBusy === "csb" ? (
+              <Loader2 size={14} className="spin" />
+            ) : exportDone === "csb" ? (
+              <Check size={14} />
+            ) : (
+              <LinkIcon size={14} />
+            )}
+            {exportDone === "csb" ? "Copied!" : "Copy CodeSandbox link"}
+          </button>
+        </div>
+      )}
+
+      {/* Toast */}
+      {toast && (
+        <div
+          style={{
+            position: "fixed",
+            bottom: 120,
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 60,
+            background: "rgba(180,40,40,0.95)",
+            color: "#fff",
+            padding: "8px 14px",
+            borderRadius: 8,
+            fontSize: 13,
+            fontFamily: "ui-sans-serif, system-ui, sans-serif",
+            boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
+          }}
+        >
+          {toast}
+        </div>
+      )}
+
       <style>{`
         @keyframes prism-pulse {
           0%, 100% { opacity: 0.3; transform: scale(0.9); }
           50% { opacity: 1; transform: scale(1.1); }
         }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .spin { animation: spin 0.9s linear infinite; }
       `}</style>
     </div>
   );
