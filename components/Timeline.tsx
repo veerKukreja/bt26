@@ -1,6 +1,7 @@
 "use client";
 
 import type { Snapshot } from "@/lib/types";
+import { SnapshotHoverCard } from "./SnapshotHoverCard";
 
 interface Props {
   snapshots: Snapshot[];
@@ -53,25 +54,23 @@ export function Timeline({ snapshots, currentIndex, onScrub }: Props) {
           pointerEvents: "auto",
         }}
       >
-        {snapshots.map((_, i) => (
+        {snapshots.map((snap, i) => (
           <div
-            key={i}
+            key={snap.id}
             style={{
               position: "absolute",
               left: `${(i / Math.max(snapshots.length - 1, 1)) * 100}%`,
               top: "50%",
-              transform: "translate(-50%, -50%)",
-              width: i === currentIndex ? 10 : 6,
-              height: i === currentIndex ? 10 : 6,
-              borderRadius: "50%",
-              background: i === currentIndex ? "#fff" : "rgba(255,255,255,0.4)",
-              cursor: "pointer",
-              transition: "all 150ms ease",
-              boxShadow: i === currentIndex ? "0 0 12px rgba(255,255,255,0.6)" : "none",
             }}
-            onClick={() => onScrub(i)}
-            title={snapshots[i].summary || snapshots[i].prompt}
-          />
+          >
+            <SnapshotHoverCard
+              snapshot={snap}
+              index={i}
+              total={snapshots.length}
+              active={i === currentIndex}
+              onScrub={() => onScrub(i)}
+            />
+          </div>
         ))}
         <input
           type="range"
