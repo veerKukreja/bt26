@@ -280,7 +280,12 @@ export function Prism({ sessionId, initialSnapshots, persistEnabled }: Props) {
         }
         return;
       }
+      if (data.type === "prism:listener-ready") {
+        console.log("[prism] iframe listener READY — element queries will work");
+        return;
+      }
       if (data.type === "prism:elementInfo" && data.target && typeof data.target === "object") {
+        console.log("[prism] elementInfo received:", data.target.tag, data.target.selector);
         setEditorEvent((prev) => {
           if (!prev) return prev;
           return {

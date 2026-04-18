@@ -60,6 +60,8 @@ function ErrorBridge({
 const ELEMENT_LISTENER_SCRIPT = `(function () {
   if (window.__prismListenerInstalled) return;
   window.__prismListenerInstalled = true;
+  try { console.log("[prism-listener] installed at", location.href); } catch (e) {}
+  try { window.parent.postMessage({ type: "prism:listener-ready" }, "*"); } catch (e) {}
   function selectorFor(el) {
     if (!el || el === document.body) return "body";
     var parts = [];
