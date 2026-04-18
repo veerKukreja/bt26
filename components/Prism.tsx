@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Preview } from "./Preview";
 import { PromptBar, type Status } from "./PromptBar";
 import { BrainstormPane } from "./BrainstormPane";
+import { ElementEditor, type EditorEvent } from "./ElementEditor";
 import { streamGenerate } from "@/lib/generate-client";
 import { DEFAULT_APP } from "@/lib/default-app";
 import { EMPTY_USAGE, accumulateUsage } from "@/lib/env-usage";
@@ -65,6 +66,7 @@ export function Prism({ sessionId, initialSnapshots, persistEnabled }: Props) {
   const [references, setReferences] = useState<FeatureInventory[]>([]);
   const [writeup, setWriteup] = useState<WriteUp | null>(null);
   const kickstartedRef = useRef(false);
+  const [editorEvent, setEditorEvent] = useState<EditorEvent | null>(null);
 
   // Hydrate user prefs + session storage on mount.
   // useLayoutEffect so hydrated=true is committed before the browser paints
@@ -503,12 +505,48 @@ export function Prism({ sessionId, initialSnapshots, persistEnabled }: Props) {
       >
         {mode === "build" ? (
           hydrated ? (
-            <Preview
-              versionKey={`v-${versionKey}`}
-              files={currentFiles}
-              onReady={handleSandpackReady}
-              onError={handleSandpackError}
-            />
+            <>
+              <Preview
+                versionKey={`v-${versionKey}`}
+                files={currentFiles}
+                onReady={handleSandpackReady}
+                onError={handleSandpackError}
+              />
+              {/* Click catcher overlay — left-click opens comment, right-click opens context menu. */}
+              <div
+                style={{
+                  position: "fixed",
+                  left: 0,
+                  top: 64,
+                  right: 0,
+                  bottom: 120,
+                  zIndex: 25,
+                  background: "transparent",
+                }}
+                onClick={(e) => {
+                  if (busy) return;
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setEditorEvent({
+                    event: "click",
+                    x: e.clientX,
+                    y: e.clientY,
+                    target: { selector: "", tag: "", text: "", outerHTMLExcerpt: "", rect: { top: 0, left: 0, width: 0, height: 0 } },
+                  });
+                }}
+                onContextMenu={(e) => {
+                  if (busy) return;
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setEditorEvent({
+                    event: "contextmenu",
+                    x: e.clientX,
+                    y: e.clientY,
+                    target: { selector: "", tag: "", text: "", outerHTMLExcerpt: "", rect: { top: 0, left: 0, width: 0, height: 0 } },
+                  });
+                }}
+              />
+            </>
           ) : (
             <div style={{ position: "absolute", inset: 0, background: "#0a0a0a" }} />
           )
@@ -566,6 +604,15 @@ export function Prism({ sessionId, initialSnapshots, persistEnabled }: Props) {
         {ephemeral && <EphemeralBadge />}
 
         {onBlankCanvas && <OnboardingHint />}
+
+        <ElementEditor
+          event={editorEvent}
+          onClose={() => setEditorEvent(null)}
+          onSubmitEdit={(instruction) => {
+            if (!instruction.trim()) return;
+            void runGeneration(instruction.trim(), currentFiles, null, 0);
+          }}
+        />
 
         <PromptBar
           onSubmit={submit}
