@@ -251,6 +251,7 @@ export function Prism({ sessionId, initialSnapshots, persistEnabled }: Props) {
   const compileTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const committedThisCycleRef = useRef(false);
   const nextWriteupRef = useRef<WriteUp | null>(null);
+  const generationAbortRef = useRef<AbortController | null>(null);
 
   const currentFiles: FileMap = useMemo(() => {
     if (pendingFiles) return pendingFiles;
@@ -315,6 +316,14 @@ export function Prism({ sessionId, initialSnapshots, persistEnabled }: Props) {
     }
   }, []);
 
+  const stopGeneration = useCallback(() => {
+    generationAbortRef.current?.abort();
+    generationAbortRef.current = null;
+    retryCountRef.current = MAX_RETRIES;
+    if (compileTimerRef.current) clearTimeout(compileTimerRef.current);
+    setStatus({ kind: "idle" });
+  }, []);
+
   const commitSnapshot = useCallback(
     async (prompt: string, summary: string, files: FileMap) => {
       const committedSnap: Snapshot = {
@@ -368,11 +377,12 @@ export function Prism({ sessionId, initialSnapshots, persistEnabled }: Props) {
       const PROGRESS_THROTTLE_MS = 120;
       setStatus(
         errorContext
-          ? { kind: "fixing", attempt, startedAt }
+          ? { kind: "fixing", attempt, startedAt, lastProgressAt: startedAt }
           : {
               kind: "generating",
               chars: 0,
               startedAt,
+              lastProgressAt: startedAt,
               filesDone: 0,
               currentFile: null,
               mcpLabel: null,
@@ -389,6 +399,10 @@ export function Prism({ sessionId, initialSnapshots, persistEnabled }: Props) {
         : errorContext
           ? "fix"
           : "generate";
+      if (generationAbortRef.current) generationAbortRef.current.abort();
+      const abortCtl = new AbortController();
+      generationAbortRef.current = abortCtl;
+      try {
       await streamGenerate(
         {
           prompt,
@@ -396,6 +410,7 @@ export function Prism({ sessionId, initialSnapshots, persistEnabled }: Props) {
           errorContext: errorContext ?? undefined,
           translate: opts?.translate,
           writeup: opts?.writeup,
+          signal: abortCtl.signal,
         },
         {
           onMcpGathering: (servers) => {
@@ -408,6 +423,7 @@ export function Prism({ sessionId, initialSnapshots, persistEnabled }: Props) {
               kind: "generating",
               chars: 0,
               startedAt,
+              lastProgressAt: Date.now(),
               filesDone: 0,
               currentFile: null,
               mcpLabel,
@@ -421,6 +437,7 @@ export function Prism({ sessionId, initialSnapshots, persistEnabled }: Props) {
               kind: "generating",
               chars: 0,
               startedAt,
+              lastProgressAt: Date.now(),
               filesDone: 0,
               currentFile: null,
               mcpLabel: null,
@@ -431,6 +448,7 @@ export function Prism({ sessionId, initialSnapshots, persistEnabled }: Props) {
             toolStarted = true;
           },
           onProgress: (chars, tail) => {
+            const charsGrew = chars > lastChars;
             lastChars = chars;
             if (errorContext) return;
             const latest = extractLatestPath(tail);
@@ -442,15 +460,21 @@ export function Prism({ sessionId, initialSnapshots, persistEnabled }: Props) {
             const now = Date.now();
             if (!fileChanged && now - lastProgressPushMs < PROGRESS_THROTTLE_MS) return;
             lastProgressPushMs = now;
-            setStatus({
+            setStatus((prev) => ({
               kind: "generating",
               chars,
               startedAt,
+              lastProgressAt:
+                charsGrew || fileChanged
+                  ? now
+                  : prev.kind === "generating"
+                    ? prev.lastProgressAt
+                    : now,
               filesDone: Math.max(filesStarted - 1, 0),
               currentFile: lastPath,
               mcpLabel: null,
               toolStarted,
-            });
+            }));
           },
           onUsage: (usage) => {
             actionTokens =
@@ -471,6 +495,20 @@ export function Prism({ sessionId, initialSnapshots, persistEnabled }: Props) {
           },
         },
       );
+      } catch (err) {
+        if ((err as { name?: string })?.name === "AbortError" || abortCtl.signal.aborted) {
+          actionError = "stopped";
+          setStatus({ kind: "idle" });
+        } else {
+          const msg = err instanceof Error ? err.message : String(err);
+          actionError = msg;
+          setStatus({ kind: "error", message: msg });
+          setTimeout(() => setStatus({ kind: "idle" }), 4000);
+        }
+      } finally {
+        if (generationAbortRef.current === abortCtl) generationAbortRef.current = null;
+      }
+      if (abortCtl.signal.aborted) return;
 
       const entry: ActionEntry = {
         id: crypto.randomUUID(),
@@ -810,6 +848,7 @@ export function Prism({ sessionId, initialSnapshots, persistEnabled }: Props) {
         <PromptBar
           onSubmit={submit}
           onTranslate={submitTranslate}
+          onCancel={stopGeneration}
           status={status}
           disabled={busy}
           usage={sessionUsage}

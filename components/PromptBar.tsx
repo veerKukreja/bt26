@@ -29,18 +29,29 @@ import {
 import { printCurrentSession } from "@/lib/print";
 import { speechLangCode } from "@/lib/language";
 import type { SupportedLang } from "@/lib/i18n";
-import type { FileMap, SessionUsage, Snapshot, WriteUp } from "@/lib/types";
+import type { ActionEntry, FileMap, SessionUsage, Snapshot, WriteUp } from "@/lib/types";
+import { derivePhase, estimateTokens, formatElapsed } from "@/lib/generate-status";
 
 export type Status =
   | { kind: "idle" }
-  | { kind: "generating"; chars: number }
-  | { kind: "fixing"; attempt: number }
+  | {
+      kind: "generating";
+      chars: number;
+      startedAt: number;
+      lastProgressAt: number;
+      filesDone: number;
+      currentFile: string | null;
+      mcpLabel: string | null;
+      toolStarted: boolean;
+    }
+  | { kind: "fixing"; attempt: number; startedAt: number; lastProgressAt: number }
   | { kind: "rolledback" }
   | { kind: "error"; message: string };
 
 interface Props {
   onSubmit: (prompt: string) => void;
   onTranslate?: (toLanguage: string) => void;
+  onCancel?: () => void;
   status: Status;
   disabled: boolean;
   usage?: SessionUsage;
@@ -52,6 +63,8 @@ interface Props {
   lang?: SupportedLang;
   mode?: "build" | "brainstorm";
   writeup?: WriteUp | null;
+  actions?: ActionEntry[];
+  currentPrompt?: string | null;
 }
 
 interface SpeechRecognitionLike {
@@ -117,6 +130,9 @@ export function PromptBar({
   lang = "en",
   mode = "build",
   writeup,
+  actions = [],
+  currentPrompt = null,
+  onCancel,
 }: Props) {
   const [value, setValue] = useState("");
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -144,6 +160,10 @@ export function PromptBar({
   const [exportDone, setExportDone] = useState<BusyKey>(null);
 
   const [forkState, setForkState] = useState<"idle" | "forking" | "copied">("idle");
+
+  const historyRef = useRef<HTMLButtonElement>(null);
+  const historyPanelRef = useRef<HTMLDivElement>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   const [toast, setToast] = useState<string | null>(null);
 
@@ -189,7 +209,7 @@ export function PromptBar({
   }, []);
 
   useEffect(() => {
-    if (!exportOpen && !versionsOpen) return;
+    if (!exportOpen && !versionsOpen && !historyOpen) return;
     const onClick = (e: MouseEvent) => {
       const target = e.target as Node;
       const insideExport =
@@ -198,15 +218,21 @@ export function PromptBar({
       const insideVersions =
         (versionsRef.current && versionsRef.current.contains(target)) ||
         (versionsPanelRef.current && versionsPanelRef.current.contains(target));
+      const insideHistory =
+        (historyRef.current && historyRef.current.contains(target)) ||
+        (historyPanelRef.current && historyPanelRef.current.contains(target));
       if (!insideExport) setExportOpen(false);
       if (!insideVersions) setVersionsOpen(false);
+      if (!insideHistory) setHistoryOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         if (exportOpen) exportRef.current?.focus();
         if (versionsOpen) versionsRef.current?.focus();
+        if (historyOpen) historyRef.current?.focus();
         setExportOpen(false);
         setVersionsOpen(false);
+        setHistoryOpen(false);
       }
     };
     window.addEventListener("mousedown", onClick);
@@ -215,7 +241,7 @@ export function PromptBar({
       window.removeEventListener("mousedown", onClick);
       window.removeEventListener("keydown", onKey);
     };
-  }, [exportOpen, versionsOpen]);
+  }, [exportOpen, versionsOpen, historyOpen]);
 
   const submit = () => {
     const v = value.trim();
@@ -378,22 +404,62 @@ export function PromptBar({
     }
   };
 
-  const statusLabel = (() => {
-    switch (status.kind) {
-      case "generating":
-        return `thinking · ${Math.floor(status.chars / 4)} tokens`;
-      case "fixing":
-        return `fixing · attempt ${status.attempt}`;
-      case "rolledback":
-        return "rolled back";
-      case "error":
-        return `error: ${status.message.slice(0, 80)}`;
-      default:
-        return null;
-    }
-  })();
-
+  const [heartbeat, setHeartbeat] = useState(0);
   const busy = status.kind === "generating" || status.kind === "fixing";
+  useEffect(() => {
+    if (!busy) return;
+    const id = setInterval(() => setHeartbeat((n) => n + 1), 650);
+    return () => clearInterval(id);
+  }, [busy]);
+
+  const STALL_THRESHOLD_MS = 8000;
+  const statusView = (() => {
+    void heartbeat;
+    if (status.kind === "generating") {
+      const now = Date.now();
+      const elapsedMs = now - status.startedAt;
+      const stallMs = now - status.lastProgressAt;
+      const stalled = stallMs > STALL_THRESHOLD_MS;
+      let phase: string;
+      if (stalled) {
+        phase = `waiting on API · ${formatElapsed(stallMs)} silent`;
+      } else {
+        phase = derivePhase({
+          chars: status.chars,
+          tail: "",
+          elapsedMs,
+          filesDone: status.filesDone,
+          currentFile: status.currentFile,
+          mcpLabel: status.mcpLabel,
+          toolStarted: status.toolStarted,
+        }).phase;
+      }
+      const pieces: string[] = [];
+      if (status.filesDone > 0) pieces.push(`${status.filesDone} ${status.filesDone === 1 ? "file" : "files"}`);
+      pieces.push(formatElapsed(elapsedMs));
+      if (status.chars > 0) pieces.push(`${estimateTokens(status.chars)} tok`);
+      return {
+        primary: phase,
+        meta: pieces.join(" · "),
+        tone: stalled ? ("warn" as const) : ("busy" as const),
+      };
+    }
+    if (status.kind === "fixing") {
+      const elapsedMs = Date.now() - status.startedAt;
+      return {
+        primary: `fixing · attempt ${status.attempt}`,
+        meta: formatElapsed(elapsedMs),
+        tone: "busy" as const,
+      };
+    }
+    if (status.kind === "rolledback") {
+      return { primary: "rolled back", meta: "", tone: "warn" as const };
+    }
+    if (status.kind === "error") {
+      return { primary: `error: ${status.message.slice(0, 80)}`, meta: "", tone: "error" as const };
+    }
+    return null;
+  })();
 
   const pillBtn = (opts: { active?: boolean; muted?: boolean } = {}): React.CSSProperties => ({
     background: opts.active ? "rgba(255,255,255,0.08)" : "transparent",
@@ -453,25 +519,50 @@ export function PromptBar({
         width: "min(880px, calc(100vw - 48px))",
       }}
     >
-      {statusLabel && (
+      {statusView && (
         <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            marginBottom: 10,
+            position: "relative",
+          }}
+        >
+        <button
+          ref={historyRef}
+          type="button"
+          onClick={() => setHistoryOpen((v) => !v)}
           role="status"
           aria-live={status.kind === "error" ? "assertive" : "polite"}
           aria-atomic="true"
+          aria-haspopup="dialog"
+          aria-expanded={historyOpen}
+          title="View history"
           style={{
-            textAlign: "center",
-            marginBottom: 10,
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 10,
+            flexWrap: "wrap",
+            padding: "6px 14px",
+            borderRadius: 999,
+            background: "rgba(15,15,18,0.82)",
+            backdropFilter: "blur(10px)",
+            WebkitBackdropFilter: "blur(10px)",
+            border: historyOpen
+              ? "1px solid rgba(255,255,255,0.22)"
+              : "1px solid rgba(255,255,255,0.08)",
+            boxShadow: "0 4px 20px rgba(0,0,0,0.35)",
             fontSize: 12,
             fontFamily: "ui-monospace, monospace",
             color:
-              status.kind === "error"
-                ? "#ff6b6b"
-                : status.kind === "rolledback"
-                  ? "#f7b955"
-                  : "rgba(255,255,255,0.7)",
+              statusView.tone === "error"
+                ? "#ff8a8a"
+                : statusView.tone === "warn"
+                  ? "#ffcc70"
+                  : "rgba(255,255,255,0.95)",
             letterSpacing: "0.04em",
             textTransform: "uppercase",
-            textShadow: "0 1px 8px rgba(0,0,0,0.5)",
+            cursor: "pointer",
           }}
         >
           {busy && (
@@ -482,13 +573,41 @@ export function PromptBar({
                 height: 6,
                 borderRadius: "50%",
                 background: "#fff",
-                marginRight: 8,
-                verticalAlign: "middle",
+                alignSelf: "center",
                 animation: "prism-pulse 1.2s ease-in-out infinite",
+                flexShrink: 0,
               }}
             />
           )}
-          {statusLabel}
+          <span
+            key={statusView.primary}
+            style={{
+              animation: busy ? "prism-status-fade 400ms ease-out" : undefined,
+            }}
+          >
+            {statusView.primary}
+          </span>
+          {statusView.meta && (
+            <span
+              style={{
+                color: "rgba(255,255,255,0.55)",
+                fontSize: 11,
+                letterSpacing: "0.06em",
+              }}
+            >
+              {statusView.meta}
+            </span>
+          )}
+        </button>
+        {historyOpen && (
+          <HistoryPanel
+            panelRef={historyPanelRef}
+            currentPrompt={currentPrompt}
+            status={status}
+            actions={actions}
+            onCancel={onCancel}
+          />
+        )}
         </div>
       )}
       <form
@@ -1078,11 +1197,275 @@ export function PromptBar({
           0%, 100% { opacity: 0.3; transform: scale(0.9); }
           50% { opacity: 1; transform: scale(1.1); }
         }
+        @keyframes prism-status-fade {
+          from { opacity: 0.35; transform: translateY(2px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
         @keyframes spin { to { transform: rotate(360deg); } }
         .spin { animation: spin 0.9s linear infinite; }
         @keyframes mic-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
         .pulse { animation: mic-pulse 1.2s ease-in-out infinite; }
+        @keyframes prism-history-rise {
+          from { opacity: 0; transform: translate(-50%, 6px); }
+          to   { opacity: 1; transform: translate(-50%, 0); }
+        }
       `}</style>
+    </div>
+  );
+}
+
+function HistoryPanel({
+  panelRef,
+  currentPrompt,
+  status,
+  actions,
+  onCancel,
+}: {
+  panelRef: React.RefObject<HTMLDivElement | null>;
+  currentPrompt: string | null;
+  status: Status;
+  actions: ActionEntry[];
+  onCancel?: () => void;
+}) {
+  const busy = status.kind === "generating" || status.kind === "fixing";
+  const liveElapsed =
+    (status.kind === "generating" || status.kind === "fixing") && status.startedAt
+      ? Date.now() - status.startedAt
+      : 0;
+  const liveTokens = status.kind === "generating" ? estimateTokens(status.chars) : 0;
+  const stallMs =
+    status.kind === "generating" || status.kind === "fixing"
+      ? Date.now() - status.lastProgressAt
+      : 0;
+  const stalled = busy && stallMs > 8000;
+
+  return (
+    <div
+      ref={panelRef}
+      role="dialog"
+      aria-label="Generation history"
+      style={{
+        position: "absolute",
+        bottom: "calc(100% + 8px)",
+        left: "50%",
+        transform: "translateX(-50%)",
+        width: "min(520px, calc(100vw - 48px))",
+        maxHeight: "60vh",
+        overflowY: "auto",
+        background: "rgba(15,15,18,0.96)",
+        backdropFilter: "blur(18px) saturate(160%)",
+        WebkitBackdropFilter: "blur(18px) saturate(160%)",
+        border: "1px solid rgba(255,255,255,0.1)",
+        borderRadius: 14,
+        boxShadow: "0 20px 60px rgba(0,0,0,0.55)",
+        padding: 12,
+        fontFamily: "ui-monospace, monospace",
+        color: "rgba(255,255,255,0.88)",
+        fontSize: 12,
+        animation: "prism-history-rise 180ms ease-out",
+        textAlign: "left",
+      }}
+    >
+      {busy && currentPrompt && (
+        <div
+          style={{
+            padding: "10px 12px",
+            marginBottom: 10,
+            borderRadius: 10,
+            background: stalled ? "rgba(255,200,100,0.06)" : "rgba(120,170,255,0.08)",
+            border: stalled
+              ? "1px solid rgba(255,200,100,0.28)"
+              : "1px solid rgba(120,170,255,0.22)",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              fontSize: 10,
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+              color: stalled ? "rgba(255,210,140,0.9)" : "rgba(160,200,255,0.85)",
+              marginBottom: 6,
+            }}
+          >
+            <span
+              style={{
+                width: 6,
+                height: 6,
+                borderRadius: "50%",
+                background: stalled ? "#ffcc70" : "#7db3ff",
+                animation: "prism-pulse 1.2s ease-in-out infinite",
+              }}
+            />
+            {stalled ? `api quiet · ${formatElapsed(stallMs)}` : "in progress"} ·{" "}
+            {formatElapsed(liveElapsed)}
+            {liveTokens > 0 && ` · ${liveTokens} tok`}
+            {onCancel && (
+              <button
+                type="button"
+                onClick={onCancel}
+                style={{
+                  marginLeft: "auto",
+                  background: "transparent",
+                  border: "1px solid rgba(255,255,255,0.2)",
+                  color: "rgba(255,255,255,0.85)",
+                  padding: "3px 10px",
+                  borderRadius: 999,
+                  fontSize: 10,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  fontFamily: "ui-monospace, monospace",
+                  cursor: "pointer",
+                }}
+              >
+                cancel
+              </button>
+            )}
+          </div>
+          <div
+            style={{
+              color: "rgba(255,255,255,0.95)",
+              fontSize: 12.5,
+              lineHeight: 1.5,
+              whiteSpace: "pre-wrap",
+              wordBreak: "break-word",
+              textTransform: "none",
+              letterSpacing: 0,
+            }}
+          >
+            {currentPrompt}
+          </div>
+          {stalled && (
+            <div
+              style={{
+                marginTop: 6,
+                fontSize: 11,
+                lineHeight: 1.4,
+                color: "rgba(255,210,140,0.75)",
+                textTransform: "none",
+                letterSpacing: 0,
+              }}
+            >
+              no response from the API for {formatElapsed(stallMs)}. cancel &amp; retry often helps.
+            </div>
+          )}
+        </div>
+      )}
+
+      <div
+        style={{
+          fontSize: 10,
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          color: "rgba(255,255,255,0.45)",
+          padding: "4px 4px 8px",
+        }}
+      >
+        history {actions.length > 0 && `· ${actions.length}`}
+      </div>
+
+      {actions.length === 0 ? (
+        <div
+          style={{
+            padding: "16px 12px",
+            color: "rgba(255,255,255,0.5)",
+            fontSize: 12,
+            textAlign: "center",
+          }}
+        >
+          no completed actions yet
+        </div>
+      ) : (
+        <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 6 }}>
+          {actions.map((a) => (
+            <li
+              key={a.id}
+              style={{
+                padding: "8px 10px",
+                borderRadius: 8,
+                background: a.error ? "rgba(255,100,100,0.06)" : "rgba(255,255,255,0.035)",
+                border: a.error
+                  ? "1px solid rgba(255,100,100,0.2)"
+                  : "1px solid rgba(255,255,255,0.06)",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "baseline",
+                  justifyContent: "space-between",
+                  gap: 8,
+                  marginBottom: 4,
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: 9.5,
+                    letterSpacing: "0.1em",
+                    textTransform: "uppercase",
+                    color: a.error ? "#ff8a8a" : "rgba(255,255,255,0.5)",
+                  }}
+                >
+                  {a.error ? "error" : a.kind}
+                </span>
+                <span
+                  style={{
+                    fontSize: 10.5,
+                    color: "rgba(255,255,255,0.5)",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {formatElapsed(a.durationMs)} · {a.tokens.toLocaleString()} tok
+                  {a.filesCount > 0 && ` · ${a.filesCount}f`}
+                </span>
+              </div>
+              <div
+                style={{
+                  color: "rgba(255,255,255,0.92)",
+                  fontSize: 12.5,
+                  lineHeight: 1.5,
+                  whiteSpace: "pre-wrap",
+                  wordBreak: "break-word",
+                  textTransform: "none",
+                  letterSpacing: 0,
+                }}
+              >
+                {a.prompt}
+              </div>
+              {a.summary && !a.error && (
+                <div
+                  style={{
+                    marginTop: 4,
+                    color: "rgba(255,255,255,0.55)",
+                    fontSize: 11.5,
+                    lineHeight: 1.4,
+                    textTransform: "none",
+                    letterSpacing: 0,
+                  }}
+                >
+                  {a.summary}
+                </div>
+              )}
+              {a.error && (
+                <div
+                  style={{
+                    marginTop: 4,
+                    color: "#ff8a8a",
+                    fontSize: 11.5,
+                    lineHeight: 1.4,
+                    textTransform: "none",
+                    letterSpacing: 0,
+                  }}
+                >
+                  {a.error}
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
