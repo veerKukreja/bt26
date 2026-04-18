@@ -782,7 +782,7 @@ export function Prism({ sessionId, initialSnapshots, persistEnabled }: Props) {
             <div style={{ position: "absolute", inset: 0, background: "#0a0a0a" }} />
           )
         ) : (
-          <div style={{ position: "absolute", inset: 0, paddingBottom: 120 }}>
+          <div style={{ position: "absolute", inset: 0, paddingBottom: 24 }}>
             <BrainstormPane
               references={references}
               writeup={writeup}
@@ -858,24 +858,26 @@ export function Prism({ sessionId, initialSnapshots, persistEnabled }: Props) {
           }}
         />
 
-        <PromptBar
-          onSubmit={submit}
-          onTranslate={submitTranslate}
-          onCancel={stopGeneration}
-          status={status}
-          disabled={busy}
-          usage={sessionUsage}
-          snapshots={snapshots}
-          currentIndex={currentIndex}
-          onScrub={scrub}
-          onFork={handleFork}
-          currentFiles={currentFiles}
-          lang={lang}
-          mode={mode}
-          writeup={writeup}
-          actions={actions}
-          currentPrompt={busy ? lastPromptRef.current : null}
-        />
+        {mode === "build" && (
+          <PromptBar
+            onSubmit={submit}
+            onTranslate={submitTranslate}
+            onCancel={stopGeneration}
+            status={status}
+            disabled={busy}
+            usage={sessionUsage}
+            snapshots={snapshots}
+            currentIndex={currentIndex}
+            onScrub={scrub}
+            onFork={handleFork}
+            currentFiles={currentFiles}
+            lang={lang}
+            mode={mode}
+            writeup={writeup}
+            actions={actions}
+            currentPrompt={busy ? lastPromptRef.current : null}
+          />
+        )}
 
         <style>{`
           @keyframes prism-shimmer {
