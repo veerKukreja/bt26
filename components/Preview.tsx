@@ -63,6 +63,17 @@ import App from "./App";
 
 try { console.log("[prism] /index.tsx loaded"); } catch (_) {}
 
+// VISIBILITY TEST: directly paint to the body so we can prove the iframe
+// is in the DOM and visible, independent of React / Sandpack.
+try {
+  var testBanner = document.createElement("div");
+  testBanner.textContent = "[prism] iframe body is visible";
+  testBanner.style.cssText = "position:fixed;top:0;left:0;right:0;z-index:99999;background:#ff3366;color:white;padding:10px;font-family:ui-monospace,monospace;font-size:12px;font-weight:bold;text-align:center";
+  document.body.appendChild(testBanner);
+} catch (e) {
+  try { console.error("[prism] body paint failed:", e); } catch (_) {}
+}
+
 const rootEl = document.getElementById("root");
 if (!rootEl) {
   document.body.innerHTML = '<div style="padding:24px;font-family:ui-monospace,monospace;color:#b33">[Prism] No #root element found in host HTML.</div>';
