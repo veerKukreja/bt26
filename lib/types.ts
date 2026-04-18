@@ -23,3 +23,15 @@ export type GenerateEvent =
   | { type: "file_done"; path: string; contents: string }
   | { type: "done"; files: FileMap; summary: string }
   | { type: "error"; message: string };
+
+export type WriteUp = {
+  title: string;
+  problem: string;
+  users: Array<{ persona: string; jobToBeDone: string }>;
+  valueProp: string;
+  features: { mustHave: string[]; shouldHave: string[]; couldHave: string[] };
+  pages: Array<{ name: string; purpose: string; keyElements: string[] }>;
+  copyDirection: string;
+  visualDirection: string;
+  risks: string[];
+};
