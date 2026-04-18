@@ -1,9 +1,10 @@
-import type { FileMap } from "./types";
+import type { FileMap, SessionUsage } from "./types";
 
 export interface GenerateCallbacks {
   onToolStart?: () => void;
   onProgress?: (chars: number, tail: string) => void;
   onText?: (text: string) => void;
+  onUsage?: (usage: SessionUsage) => void;
   onDone: (files: FileMap, summary: string) => void;
   onError: (message: string) => void;
 }
@@ -74,6 +75,11 @@ export async function streamGenerate(
         case "text":
           if (typeof payload === "object" && payload !== null) {
             cb.onText?.((payload as { text?: string }).text ?? "");
+          }
+          break;
+        case "usage":
+          if (typeof payload === "object" && payload !== null) {
+            cb.onUsage?.(payload as SessionUsage);
           }
           break;
         case "done": {

@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { getAnthropic, MODEL, WRITE_FILES_TOOL } from "@/lib/anthropic";
 import { SYSTEM_PROMPT, buildCurrentFilesMessage } from "@/lib/system-prompt";
-import type { FileMap } from "@/lib/types";
+import type { FileMap, SessionUsage } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -63,9 +63,33 @@ export async function POST(req: NextRequest) {
         });
 
         let accumulatedJson = "";
+        const usage: SessionUsage = {
+          inputTokens: 0,
+          outputTokens: 0,
+          cacheReadTokens: 0,
+          cacheCreationTokens: 0,
+        };
 
         for await (const event of response) {
-          if (event.type === "content_block_start") {
+          if (event.type === "message_start") {
+            const u = event.message.usage;
+            if (u) {
+              usage.inputTokens = u.input_tokens ?? 0;
+              usage.outputTokens = u.output_tokens ?? 0;
+              usage.cacheReadTokens = u.cache_read_input_tokens ?? 0;
+              usage.cacheCreationTokens = u.cache_creation_input_tokens ?? 0;
+            }
+          } else if (event.type === "message_delta") {
+            const u = event.usage;
+            if (u) {
+              if (typeof u.input_tokens === "number") usage.inputTokens = u.input_tokens;
+              if (typeof u.output_tokens === "number") usage.outputTokens = u.output_tokens;
+              if (typeof u.cache_read_input_tokens === "number")
+                usage.cacheReadTokens = u.cache_read_input_tokens;
+              if (typeof u.cache_creation_input_tokens === "number")
+                usage.cacheCreationTokens = u.cache_creation_input_tokens;
+            }
+          } else if (event.type === "content_block_start") {
             const cb = event.content_block;
             if (cb.type === "tool_use") {
               send("tool_start", { name: cb.name });
@@ -81,8 +105,6 @@ export async function POST(req: NextRequest) {
             } else if (d.type === "text_delta") {
               send("text", { text: d.text });
             }
-          } else if (event.type === "message_stop") {
-            // handled after loop
           }
         }
 
@@ -106,6 +128,7 @@ export async function POST(req: NextRequest) {
           }
         }
 
+        send("usage", usage);
         send("done", { files, summary: parsed.summary ?? "Updated" });
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);

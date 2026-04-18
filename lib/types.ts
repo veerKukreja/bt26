@@ -23,3 +23,10 @@ export type GenerateEvent =
   | { type: "file_done"; path: string; contents: string }
   | { type: "done"; files: FileMap; summary: string }
   | { type: "error"; message: string };
+
+export interface SessionUsage {
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens: number;
+  cacheCreationTokens: number;
+}

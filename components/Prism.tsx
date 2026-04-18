@@ -9,7 +9,8 @@ import { ForkButton } from "./ForkButton";
 import { ExportButton } from "./ExportButton";
 import { streamGenerate } from "@/lib/generate-client";
 import { DEFAULT_APP } from "@/lib/default-app";
-import type { FileMap, Snapshot } from "@/lib/types";
+import { EMPTY_USAGE, accumulateUsage } from "@/lib/env-usage";
+import type { FileMap, SessionUsage, Snapshot } from "@/lib/types";
 
 interface Props {
   sessionId: string;
@@ -26,6 +27,29 @@ function emojiFavicon(ch: string): string {
 }
 
 const LS_KEY = (id: string) => `prism:session:${id}`;
+const ENV_KEY = (id: string) => `prism:env:${id}`;
+
+function loadUsage(sessionId: string): SessionUsage | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(ENV_KEY(sessionId));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as SessionUsage;
+    if (typeof parsed?.inputTokens !== "number") return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function saveUsage(sessionId: string, usage: SessionUsage): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(ENV_KEY(sessionId), JSON.stringify(usage));
+  } catch {
+    /* ignore */
+  }
+}
 
 function loadLocal(sessionId: string): Snapshot[] | null {
   if (typeof window === "undefined") return null;
@@ -72,6 +96,21 @@ export function Prism({ sessionId, initialSnapshots, persistEnabled }: Props) {
       saveLocal(sessionId, snapshots);
     }
   }, [sessionId, snapshots, hydrated]);
+
+  const [sessionUsage, setSessionUsage] = useState<SessionUsage>(EMPTY_USAGE);
+  const [usageHydrated, setUsageHydrated] = useState(false);
+
+  useEffect(() => {
+    if (usageHydrated) return;
+    const existing = loadUsage(sessionId);
+    if (existing) setSessionUsage(existing);
+    setUsageHydrated(true);
+  }, [sessionId, usageHydrated]);
+
+  useEffect(() => {
+    if (!usageHydrated) return;
+    saveUsage(sessionId, sessionUsage);
+  }, [sessionId, sessionUsage, usageHydrated]);
   const [pendingFiles, setPendingFiles] = useState<FileMap | null>(null);
   const [status, setStatus] = useState<Status>({ kind: "idle" });
   const [versionKey, setVersionKey] = useState(0);
@@ -172,6 +211,9 @@ export function Prism({ sessionId, initialSnapshots, persistEnabled }: Props) {
         {
           onProgress: (chars) => {
             if (!errorContext) setStatus({ kind: "generating", chars });
+          },
+          onUsage: (usage) => {
+            setSessionUsage((prev) => accumulateUsage(prev, usage));
           },
           onDone: (files, summary) => {
             gotFiles = files;
@@ -379,7 +421,7 @@ export function Prism({ sessionId, initialSnapshots, persistEnabled }: Props) {
         onScrub={scrub}
       />
       {onBlankCanvas && <OnboardingHint />}
-      <PromptBar onSubmit={submit} status={status} disabled={busy} />
+      <PromptBar onSubmit={submit} status={status} disabled={busy} usage={sessionUsage} />
       <style>{`
         @keyframes prism-shimmer {
           0% { background-position: 200% 0; }
