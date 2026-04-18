@@ -143,22 +143,40 @@ export function WriteupPanel({ writeup, onChange, references }: WriteupPanelProp
 
   const pasteJson = async () => {
     if (busy) return;
+    let text: string;
     try {
-      const text = await navigator.clipboard.readText();
-      if (!text || !text.trim()) {
-        showToast("Clipboard is empty.");
-        return;
-      }
-      const parsed = JSON.parse(text);
-      if (!parsed || typeof parsed !== "object" || typeof parsed.title !== "string") {
-        showToast("Clipboard isn't a valid WriteUp JSON.");
-        return;
-      }
-      onChange(parsed as WriteUp);
-      showToast("Pasted.");
-    } catch (e) {
-      showToast(`Paste failed: ${(e as Error).message}`);
+      text = await navigator.clipboard.readText();
+    } catch {
+      showToast("Clipboard access denied. Copy a WriteUp JSON first, then click Paste.");
+      return;
     }
+    if (!text || !text.trim()) {
+      showToast("Clipboard is empty.");
+      return;
+    }
+    // Extract the first {...} block so users can paste from messy sources
+    // (dev logs, code blocks with prose around them, etc.).
+    const start = text.indexOf("{");
+    const end = text.lastIndexOf("}");
+    const payload = start >= 0 && end > start ? text.slice(start, end + 1) : text;
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(payload);
+    } catch {
+      showToast("Clipboard doesn't contain a WriteUp JSON. Use Copy JSON in another Prism first.");
+      return;
+    }
+    if (!parsed || typeof parsed !== "object") {
+      showToast("Pasted content isn't a JSON object.");
+      return;
+    }
+    const obj = parsed as Record<string, unknown>;
+    if (typeof obj.title !== "string") {
+      showToast("JSON is missing a WriteUp 'title' field.");
+      return;
+    }
+    onChange(obj as unknown as WriteUp);
+    showToast("Pasted.");
   };
 
   return (
