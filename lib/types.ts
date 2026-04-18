@@ -16,14 +16,6 @@ export interface Session {
   parentSnapshotId: string | null;
 }
 
-export type GenerateEvent =
-  | { type: "thinking"; text: string }
-  | { type: "file_start"; path: string }
-  | { type: "file_delta"; path: string; delta: string }
-  | { type: "file_done"; path: string; contents: string }
-  | { type: "done"; files: FileMap; summary: string }
-  | { type: "error"; message: string };
-
 export interface SessionUsage {
   inputTokens: number;
   outputTokens: number;

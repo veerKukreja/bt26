@@ -7,6 +7,7 @@ import { PromptBar, type Status } from "./PromptBar";
 import { streamGenerate } from "@/lib/generate-client";
 import { DEFAULT_APP } from "@/lib/default-app";
 import { EMPTY_USAGE, accumulateUsage } from "@/lib/env-usage";
+import { emojiFaviconDataUri } from "@/lib/export-templates";
 import type { FileMap, SessionUsage, Snapshot } from "@/lib/types";
 
 interface Props {
@@ -17,11 +18,6 @@ interface Props {
 
 const MAX_RETRIES = 2;
 const COMPILE_GRACE_MS = 1500;
-
-function emojiFavicon(ch: string): string {
-  const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><text y='50' font-size='52'>${ch}</text></svg>`;
-  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
-}
 
 const LS_KEY = (id: string) => `prism:session:${id}`;
 const ENV_KEY = (id: string) => `prism:env:${id}`;
@@ -117,6 +113,7 @@ export function Prism({ sessionId, initialSnapshots, persistEnabled }: Props) {
   );
   const retryCountRef = useRef(0);
   const lastPromptRef = useRef<string>("");
+  const lastSummaryRef = useRef<string>("");
   const compileTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const committedThisCycleRef = useRef(false);
 
@@ -137,7 +134,7 @@ export function Prism({ sessionId, initialSnapshots, persistEnabled }: Props) {
       if (typeof data.favicon === "string" && data.favicon.length > 0) {
         const href = data.favicon.startsWith("data:")
           ? data.favicon
-          : emojiFavicon(data.favicon);
+          : emojiFaviconDataUri(data.favicon);
         let link = document.querySelector<HTMLLinkElement>("link[rel~='icon']");
         if (!link) {
           link = document.createElement("link");
@@ -226,6 +223,7 @@ export function Prism({ sessionId, initialSnapshots, persistEnabled }: Props) {
       // Install as pending; Sandpack will attempt to compile.
       setPendingFiles(gotFiles);
       setVersionKey((k) => k + 1);
+      lastSummaryRef.current = gotSummary;
 
       // Schedule a commit after grace period if Sandpack reports success OR is silent.
       if (compileTimerRef.current) clearTimeout(compileTimerRef.current);
@@ -257,7 +255,7 @@ export function Prism({ sessionId, initialSnapshots, persistEnabled }: Props) {
     if (committedThisCycleRef.current) return;
     committedThisCycleRef.current = true;
     if (compileTimerRef.current) clearTimeout(compileTimerRef.current);
-    void commitSnapshot(lastPromptRef.current, "", pendingFiles);
+    void commitSnapshot(lastPromptRef.current, lastSummaryRef.current, pendingFiles);
     retryCountRef.current = 0;
     setStatus({ kind: "idle" });
   }, [pendingFiles, commitSnapshot]);

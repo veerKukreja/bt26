@@ -5,6 +5,7 @@ import type { FileMap } from "@/lib/types";
 import {
   STANDALONE_HTML_TPL,
   DEFAULT_FAVICON_DATA_URI,
+  emojiFaviconDataUri,
 } from "@/lib/export-templates";
 
 export const runtime = "nodejs";
@@ -53,9 +54,9 @@ function inMemoryLoader(files: FileMap): esbuild.Plugin {
           return { path: args.path, namespace: "vfs" };
         }
         if (args.path.startsWith(".")) {
-          const importerDir = args.importer.replace(/\/[^/]+$/, "");
-          const joined = (importerDir ? `${importerDir}/` : "/") + args.path.replace(/^\.\//, "");
-          const candidates = [joined, `${joined}.tsx`, `${joined}.ts`, `${joined}.jsx`, `${joined}.js`];
+          const importerDir = args.importer.replace(/\/[^/]+$/, "") || "/";
+          const resolved = path.posix.resolve(importerDir, args.path);
+          const candidates = [resolved, `${resolved}.tsx`, `${resolved}.ts`, `${resolved}.jsx`, `${resolved}.js`];
           for (const candidate of candidates) {
             if (files[candidate]) return { path: candidate, namespace: "vfs" };
           }
@@ -77,13 +78,6 @@ function inMemoryLoader(files: FileMap): esbuild.Plugin {
 function extractEmoji(text: string): string | null {
   const match = text.match(/\p{Extended_Pictographic}/u);
   return match ? match[0] : null;
-}
-
-function emojiFavicon(ch: string): string {
-  return "data:image/svg+xml," +
-    encodeURIComponent(
-      `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><text y='50' font-size='52'>${ch}</text></svg>`,
-    );
 }
 
 export async function POST(req: NextRequest) {
@@ -131,7 +125,7 @@ export async function POST(req: NextRequest) {
       });
     }
     const emoji = extractEmoji(summary);
-    const favicon = emoji ? emojiFavicon(emoji) : DEFAULT_FAVICON_DATA_URI;
+    const favicon = emoji ? emojiFaviconDataUri(emoji) : DEFAULT_FAVICON_DATA_URI;
     const safeTitle = escapeHtml(summary.slice(0, 100) || "Prism Export");
     const safeJs = neutralizeScriptTags(js);
     const html = STANDALONE_HTML_TPL

@@ -62,34 +62,38 @@ export async function streamGenerate(
       } catch {
         continue;
       }
+      if (typeof payload !== "object" || payload === null) continue;
+      const p = payload as Record<string, unknown>;
       switch (event) {
         case "tool_start":
           cb.onToolStart?.();
           break;
         case "progress":
-          if (typeof payload === "object" && payload !== null) {
-            const p = payload as { chars?: number; tail?: string };
-            cb.onProgress?.(p.chars ?? 0, p.tail ?? "");
-          }
+          cb.onProgress?.(
+            typeof p.chars === "number" ? p.chars : 0,
+            typeof p.tail === "string" ? p.tail : "",
+          );
           break;
         case "text":
-          if (typeof payload === "object" && payload !== null) {
-            cb.onText?.((payload as { text?: string }).text ?? "");
-          }
+          cb.onText?.(typeof p.text === "string" ? p.text : "");
           break;
         case "usage":
-          if (typeof payload === "object" && payload !== null) {
-            cb.onUsage?.(payload as SessionUsage);
-          }
+          cb.onUsage?.({
+            inputTokens: typeof p.inputTokens === "number" ? p.inputTokens : 0,
+            outputTokens: typeof p.outputTokens === "number" ? p.outputTokens : 0,
+            cacheReadTokens: typeof p.cacheReadTokens === "number" ? p.cacheReadTokens : 0,
+            cacheCreationTokens: typeof p.cacheCreationTokens === "number" ? p.cacheCreationTokens : 0,
+          });
           break;
         case "done": {
-          const p = payload as { files: FileMap; summary: string };
-          cb.onDone(p.files, p.summary);
+          const files = (p.files && typeof p.files === "object" ? p.files : {}) as FileMap;
+          const summary = typeof p.summary === "string" ? p.summary : "";
+          cb.onDone(files, summary);
           return;
         }
         case "error": {
-          const p = payload as { message: string };
-          cb.onError(p.message);
+          const message = typeof p.message === "string" ? p.message : "Unknown error";
+          cb.onError(message);
           return;
         }
       }

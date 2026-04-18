@@ -82,7 +82,11 @@ export const STANDALONE_HTML_TPL = `<!doctype html>
 </html>
 `;
 
-export const DEFAULT_FAVICON_DATA_URI = "data:image/svg+xml," +
-  encodeURIComponent(
-    "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><text y='50' font-size='52'>◆</text></svg>",
-  );
+export function emojiFaviconDataUri(ch: string): string {
+  return "data:image/svg+xml," +
+    encodeURIComponent(
+      `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><text y='50' font-size='52'>${ch}</text></svg>`,
+    );
+}
+
+export const DEFAULT_FAVICON_DATA_URI = emojiFaviconDataUri("◆");

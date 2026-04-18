@@ -92,6 +92,15 @@ export function PromptBar({
 
   const [toast, setToast] = useState<string | null>(null);
 
+  const transientTimersRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
+  const scheduleTransient = (fn: () => void, ms: number) => {
+    const t = setTimeout(() => {
+      transientTimersRef.current.delete(t);
+      fn();
+    }, ms);
+    transientTimersRef.current.add(t);
+  };
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "/" && document.activeElement !== inputRef.current) {
@@ -101,6 +110,14 @@ export function PromptBar({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  useEffect(() => {
+    const timers = transientTimersRef.current;
+    return () => {
+      for (const t of timers) clearTimeout(t);
+      timers.clear();
+    };
   }, []);
 
   useEffect(() => {
@@ -141,7 +158,7 @@ export function PromptBar({
 
   const showToast = (message: string) => {
     setToast(message);
-    setTimeout(() => setToast(null), 4000);
+    scheduleTransient(() => setToast(null), 4000);
   };
 
   const activeSnap = snapshots[currentIndex];
@@ -186,7 +203,7 @@ export function PromptBar({
         const ok = await copyToClipboard(url);
         if (ok) {
           setExportDone("csb");
-          setTimeout(() => setExportDone(null), 1500);
+          scheduleTransient(() => setExportDone(null), 1500);
         } else {
           showToast(`Couldn't copy — URL: ${url}`);
         }
@@ -209,7 +226,7 @@ export function PromptBar({
         /* ignore */
       }
       setForkState("copied");
-      setTimeout(() => setForkState("idle"), 1800);
+      scheduleTransient(() => setForkState("idle"), 1800);
     } else {
       setForkState("idle");
     }

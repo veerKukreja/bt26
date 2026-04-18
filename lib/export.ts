@@ -98,9 +98,16 @@ export async function requestHtmlBundle(
   });
   if (!res.ok) {
     const msg = await res.text();
-    let parsed: { error?: string };
-    try { parsed = JSON.parse(msg); } catch { parsed = {}; }
-    throw new Error(parsed.error ?? `HTML export failed (${res.status})`);
+    let errText: string | undefined;
+    try {
+      const parsed = JSON.parse(msg);
+      if (parsed && typeof parsed === "object" && typeof parsed.error === "string") {
+        errText = parsed.error;
+      }
+    } catch {
+      /* non-JSON body; fall through */
+    }
+    throw new Error(errText ?? `HTML export failed (${res.status})`);
   }
   return res.blob();
 }
@@ -113,7 +120,7 @@ export function triggerDownload(blob: Blob, filename: string): void {
   document.body.appendChild(a);
   a.click();
   a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 0);
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
 }
 
 export async function copyToClipboard(text: string): Promise<boolean> {
