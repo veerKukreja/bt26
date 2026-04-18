@@ -33,6 +33,13 @@ export interface FeatureInventory {
   userFlows: Array<{ name: string; steps: string[] }>;
   designLanguage: { palette: string[]; typography: string; vibe: string };
   copyExamples: string[];
+  source?: {
+    kind: "url" | "images" | "figma" | "github";
+    refUrl?: string;
+    title?: string;
+    description?: string;
+    ogImage?: string;
+  };
 }
 
 export type WriteUp = {

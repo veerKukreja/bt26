@@ -246,3 +246,24 @@ Incoming: %s useEffect [true, [object Object]] [true] @ http://localhost:9998/_n
 [ 2037689ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
 [ 2037715ms] [LOG] [Fast Refresh] done in 38ms @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
 [ 2061934ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_TIMED_OUT @ https://col.csbops.io/data/sandpack:0
+[ 2170114ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[ 2170228ms] [LOG] [Fast Refresh] done in 217ms @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[ 2170608ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[ 2170929ms] [LOG] [Fast Refresh] done in 423ms @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[ 2192881ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[ 2193272ms] [LOG] [Fast Refresh] done in 240ms @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[ 2198846ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[ 2198972ms] [LOG] [Fast Refresh] done in 51ms @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[ 2239194ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[ 2239254ms] [LOG] [Fast Refresh] done in 87ms @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[ 2245202ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[ 2245225ms] [LOG] [Fast Refresh] done in 40ms @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[ 2251055ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[ 2251069ms] [LOG] [Fast Refresh] done in 53ms @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[ 2260630ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[ 2260970ms] [LOG] [Fast Refresh] done in 334ms @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[ 2261336ms] [WARNING] %c%s%c [33m[1m⚠[22m[39m metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "http://localhost:9998". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px  Server   @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[ 2262368ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[ 2262386ms] [LOG] [HMR] connected @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[ 2281493ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[ 2281511ms] [LOG] [Fast Refresh] done in 97ms @ http://localhost:9998/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431

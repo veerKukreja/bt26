@@ -6,6 +6,7 @@ import { Preview } from "./Preview";
 import { PromptBar, type Status } from "./PromptBar";
 import { BrainstormPane } from "./BrainstormPane";
 import { ElementEditor, type EditorEvent } from "./ElementEditor";
+import { FileExplorer } from "./FileExplorer";
 import { streamGenerate } from "@/lib/generate-client";
 import { DEFAULT_APP } from "@/lib/default-app";
 import { EMPTY_USAGE, accumulateUsage } from "@/lib/env-usage";
@@ -68,6 +69,7 @@ export function Prism({ sessionId, initialSnapshots, persistEnabled }: Props) {
   const kickstartedRef = useRef(false);
   const [editorEvent, setEditorEvent] = useState<EditorEvent | null>(null);
   const [interactMode, setInteractMode] = useState(false);
+  const [filesPanelOpen, setFilesPanelOpen] = useState(false);
 
   // Hydrate user prefs + session storage on mount.
   // useLayoutEffect so hydrated=true is committed before the browser paints
@@ -371,6 +373,24 @@ export function Prism({ sessionId, initialSnapshots, persistEnabled }: Props) {
     [status, currentFiles, runGeneration, mode, writeup],
   );
 
+  const saveEditedFiles = useCallback(
+    (next: FileMap) => {
+      if (status.kind === "generating" || status.kind === "fixing") return;
+      setPendingFiles(next);
+      setVersionKey((k) => k + 1);
+      lastSummaryRef.current = "Manual edit";
+      if (compileTimerRef.current) clearTimeout(compileTimerRef.current);
+      committedThisCycleRef.current = false;
+      compileTimerRef.current = setTimeout(() => {
+        if (committedThisCycleRef.current) return;
+        committedThisCycleRef.current = true;
+        void commitSnapshot("(manual edit)", "Manual edit", next);
+        retryCountRef.current = 0;
+      }, COMPILE_GRACE_MS);
+    },
+    [status, commitSnapshot],
+  );
+
   const submitTranslate = useCallback(
     async (toLanguage: string) => {
       if (status.kind === "generating" || status.kind === "fixing") return;
@@ -605,6 +625,17 @@ export function Prism({ sessionId, initialSnapshots, persistEnabled }: Props) {
           hasWriteup={!!writeup}
           interactMode={interactMode}
           onInteractChange={setInteractMode}
+          filesOpen={filesPanelOpen}
+          onFilesToggle={() => setFilesPanelOpen((o) => !o)}
+        />
+
+        <FileExplorer
+          files={currentFiles}
+          open={filesPanelOpen}
+          onClose={() => setFilesPanelOpen(false)}
+          onSave={(next) => {
+            saveEditedFiles(next);
+          }}
         />
 
         {ephemeral && <EphemeralBadge />}
@@ -661,6 +692,8 @@ interface TopBarProps {
   hasWriteup: boolean;
   interactMode: boolean;
   onInteractChange: (v: boolean) => void;
+  filesOpen: boolean;
+  onFilesToggle: () => void;
 }
 
 const LANG_LABELS: Record<SupportedLang, string> = {
@@ -674,7 +707,7 @@ const LANG_LABELS: Record<SupportedLang, string> = {
   ru: "Русский",
 };
 
-function TopBar({ mode, onModeChange, ephemeral, onEphemeralChange, lang, onLangChange, hasWriteup, interactMode, onInteractChange }: TopBarProps) {
+function TopBar({ mode, onModeChange, ephemeral, onEphemeralChange, lang, onLangChange, hasWriteup, interactMode, onInteractChange, filesOpen, onFilesToggle }: TopBarProps) {
   const pillStyle = (active: boolean): React.CSSProperties => ({
     padding: "6px 14px",
     fontSize: 11,
@@ -765,6 +798,28 @@ function TopBar({ mode, onModeChange, ephemeral, onEphemeralChange, lang, onLang
         }}
       >
         {interactMode ? "● Interact" : "Interact"}
+      </button>
+
+      <button
+        onClick={onFilesToggle}
+        aria-pressed={filesOpen}
+        title={filesOpen ? "Close file explorer" : "Open file explorer + editor"}
+        style={{
+          padding: "8px 14px",
+          fontSize: 11,
+          fontFamily: "ui-monospace, monospace",
+          textTransform: "uppercase",
+          letterSpacing: "0.08em",
+          background: filesOpen ? "rgba(180,160,255,0.2)" : "rgba(18,18,22,0.78)",
+          backdropFilter: "blur(18px) saturate(160%)",
+          WebkitBackdropFilter: "blur(18px) saturate(160%)",
+          color: filesOpen ? "#b4a0ff" : "rgba(255,255,255,0.6)",
+          border: `1px solid ${filesOpen ? "rgba(180,160,255,0.4)" : "rgba(255,255,255,0.12)"}`,
+          borderRadius: 999,
+          cursor: "pointer",
+        }}
+      >
+        {filesOpen ? "● Files" : "Files"}
       </button>
 
       <select

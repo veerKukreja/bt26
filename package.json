@@ -14,6 +14,7 @@
     "@codesandbox/sandpack-react": "^2.20.0",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@supabase/supabase-js": "^2.103.3",
+    "cheerio": "^1.2.0",
     "esbuild": "^0.24.0",
     "fflate": "^0.8.2",
     "lucide-react": "^1.8.0",
