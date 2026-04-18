@@ -26,3 +26,14 @@ export function buildCodeSandboxUrl(files: FileMap): { url: string; overflow: bo
   }
   return { url: `${CSB_DEFINE}?parameters=${compressed}`, overflow: false };
 }
+
+export function exportFilename(meta: { summary: string; id: string }, ext: "zip" | "html"): string {
+  const idPrefix = meta.id.slice(0, 8);
+  const slug = meta.summary
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40);
+  const body = slug ? `${slug}-${idPrefix}` : idPrefix;
+  return `prism-${body}.${ext}`;
+}

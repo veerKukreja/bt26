@@ -33,3 +33,25 @@ test("buildCodeSandboxUrl signals overflow above 2MB encoded size", () => {
   assert.equal(overflow, true);
   assert.equal(url, "");
 });
+
+import { exportFilename } from "./export";
+
+test("exportFilename slugs summary, appends id prefix, honors extension", () => {
+  const name = exportFilename({
+    summary: "Tokyo Coffee Shop!!",
+    id: "8f3a9e12-1234-abcd",
+  }, "zip");
+  assert.equal(name, "prism-tokyo-coffee-shop-8f3a9e12.zip");
+});
+
+test("exportFilename truncates long summaries to 40 chars", () => {
+  const long = "a".repeat(80);
+  const name = exportFilename({ summary: long, id: "abc12345-xyz" }, "html");
+  // 40 + '-' + 8-char id = 49 + '.html'
+  assert.ok(/^prism-a{40}-abc12345\.html$/.test(name), `got ${name}`);
+});
+
+test("exportFilename falls back to id when summary is empty", () => {
+  const name = exportFilename({ summary: "", id: "abc12345-xyz" }, "zip");
+  assert.equal(name, "prism-abc12345.zip");
+});
