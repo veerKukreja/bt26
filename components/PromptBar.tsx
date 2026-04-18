@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   Download,
   FileArchive,
@@ -16,6 +16,7 @@ import {
   Printer,
 } from "lucide-react";
 import { HoverCard } from "./HoverCard";
+import { Tooltip } from "./Tooltip";
 import { computeUsage, isZeroUsage } from "@/lib/env-usage";
 import {
   buildZip,
@@ -118,7 +119,7 @@ export function PromptBar({
   writeup,
 }: Props) {
   const [value, setValue] = useState("");
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const [speechAvailable, setSpeechAvailable] = useState(false);
   const [listening, setListening] = useState(false);
@@ -165,6 +166,13 @@ export function PromptBar({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
+
+  useLayoutEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
+  }, [value]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -490,214 +498,271 @@ export function PromptBar({
         }}
         style={{
           display: "flex",
-          alignItems: "center",
+          flexDirection: "column",
           gap: 4,
           background: "rgba(18,18,22,0.78)",
           backdropFilter: "blur(24px) saturate(180%)",
           WebkitBackdropFilter: "blur(24px) saturate(180%)",
           border: "1px solid rgba(255,255,255,0.12)",
-          borderRadius: 999,
-          padding: "6px 8px",
+          borderRadius: 20,
+          padding: "8px 10px",
           boxShadow: "0 10px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04) inset",
         }}
       >
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
         {usage && !isZeroUsage(usage) && (() => {
           const { energyWh, waterMl } = computeUsage(usage);
           return (
-            <button
-              type="button"
-              ref={trackerRef}
-              onClick={() => setMethodologyOpen((o) => !o)}
-              aria-label="Environmental usage — click for methodology"
-              aria-haspopup="dialog"
-              aria-expanded={methodologyOpen}
-              aria-describedby={methodologyOpen ? "env-methodology" : undefined}
-              title="Session energy & water usage — click for methodology"
-              style={pillBtn({ muted: true })}
-            >
-              {formatNumber(energyWh)} Wh · {formatNumber(waterMl)} mL
-            </button>
+            <Tooltip label="Session energy & water · click for methodology">
+              <button
+                type="button"
+                ref={trackerRef}
+                onClick={() => setMethodologyOpen((o) => !o)}
+                aria-label="Environmental usage — click for methodology"
+                aria-haspopup="dialog"
+                aria-expanded={methodologyOpen}
+                aria-describedby={methodologyOpen ? "env-methodology" : undefined}
+                style={pillBtn({ muted: true })}
+              >
+                {formatNumber(energyWh)} Wh · {formatNumber(waterMl)} mL
+              </button>
+            </Tooltip>
           );
         })()}
 
         {(snapshots.length > 1 || (snapshots.length === 1 && snapshots[0]?.id !== "origin")) && (
-          <button
-            type="button"
-            ref={versionsRef}
-            onClick={() => {
-              setVersionsOpen((o) => !o);
-              setExportOpen(false);
-            }}
-            aria-label={`Versions — currently v${currentIndex + 1} of ${snapshots.length}`}
-            aria-haspopup="menu"
-            aria-expanded={versionsOpen}
-            title={`Version history (${currentIndex + 1} of ${snapshots.length}) — click to scrub`}
-            style={pillBtn({ active: versionsOpen })}
-          >
-            <Layers size={12} />
-            v{currentIndex + 1}/{snapshots.length}
-          </button>
+          <Tooltip label={`Version history · v${currentIndex + 1} of ${snapshots.length}`}>
+            <button
+              type="button"
+              ref={versionsRef}
+              onClick={() => {
+                setVersionsOpen((o) => !o);
+                setExportOpen(false);
+              }}
+              aria-label={`Versions — currently v${currentIndex + 1} of ${snapshots.length}`}
+              aria-haspopup="menu"
+              aria-expanded={versionsOpen}
+              style={pillBtn({ active: versionsOpen })}
+            >
+              <Layers size={12} />
+              v{currentIndex + 1}/{snapshots.length}
+            </button>
+          </Tooltip>
         )}
 
-        <input
-          ref={inputRef}
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          placeholder={
-            disabled
-              ? "Generating…"
-              : "Tell this page what to become. Try: a Tokyo coffee shop at 3am"
-          }
-          disabled={disabled}
-          style={{
-            flex: 1,
-            background: "transparent",
-            border: "none",
-            outline: "none",
-            color: "#fff",
-            fontSize: 15,
-            fontFamily: "ui-sans-serif, system-ui, sans-serif",
-            padding: "8px 12px",
-            letterSpacing: "-0.01em",
-            minWidth: 0,
-          }}
-        />
+        <div style={{ flex: 1 }} />
 
-        <button
-          type="button"
-          ref={exportRef}
-          onClick={() => {
-            setExportOpen((o) => !o);
-            setVersionsOpen(false);
-          }}
-          disabled={disabled && !exportOpen}
-          aria-label="Export"
-          aria-haspopup="menu"
-          aria-expanded={exportOpen}
-          title="Export current snapshot (.zip, .html, CodeSandbox)"
-          style={iconBtn({ active: exportOpen })}
-        >
-          <Download size={16} />
-        </button>
-
-        {onTranslate && (
+        <Tooltip label="Export · .zip · .html · CodeSandbox">
           <button
             type="button"
-            ref={translateRef}
+            ref={exportRef}
             onClick={() => {
-              setTranslateOpen((o) => !o);
-              setExportOpen(false);
+              setExportOpen((o) => !o);
               setVersionsOpen(false);
             }}
-            disabled={disabled}
-            aria-label="Translate"
+            disabled={disabled && !exportOpen}
+            aria-label="Export"
             aria-haspopup="menu"
-            aria-expanded={translateOpen}
-            style={iconBtn({ active: translateOpen })}
-            title="Translate generated page"
+            aria-expanded={exportOpen}
+            style={iconBtn({ active: exportOpen })}
           >
-            <Languages size={16} />
+            <Download size={16} />
           </button>
+        </Tooltip>
+
+        {onTranslate && (
+          <Tooltip label="Translate this page">
+            <button
+              type="button"
+              ref={translateRef}
+              onClick={() => {
+                setTranslateOpen((o) => !o);
+                setExportOpen(false);
+                setVersionsOpen(false);
+              }}
+              disabled={disabled}
+              aria-label="Translate"
+              aria-haspopup="menu"
+              aria-expanded={translateOpen}
+              style={iconBtn({ active: translateOpen })}
+            >
+              <Languages size={16} />
+            </button>
+          </Tooltip>
         )}
 
-        <button
-          type="button"
-          onClick={handlePrint}
-          disabled={disabled || printing}
-          aria-label={printing ? "Preparing print…" : "Print"}
-          style={iconBtn()}
-          title="Print this page"
-        >
-          {printing ? <Loader2 size={15} className="spin" /> : <Printer size={15} />}
-        </button>
+        <Tooltip label={printing ? "Preparing print…" : "Print this page"}>
+          <button
+            type="button"
+            onClick={handlePrint}
+            disabled={disabled || printing}
+            aria-label={printing ? "Preparing print…" : "Print"}
+            style={iconBtn()}
+          >
+            {printing ? <Loader2 size={15} className="spin" /> : <Printer size={15} />}
+          </button>
+        </Tooltip>
 
-        <button
-          type="button"
-          onClick={handleFork}
-          disabled={disabled || forkState !== "idle"}
-          aria-label={
+        <Tooltip
+          label={
             forkState === "forking"
               ? "Forking…"
               : forkState === "copied"
-                ? "Fork URL copied"
-                : "Fork to new URL"
-          }
-          style={{
-            ...iconBtn(),
-            color: forkState === "copied" ? "#8eff8e" : "rgba(255,255,255,0.75)",
-          }}
-          title={
-            forkState === "forking"
-              ? "forking…"
-              : forkState === "copied"
-                ? "URL copied"
-                : "Fork to new URL"
+                ? "Fork URL copied to clipboard"
+                : "Fork to a new URL"
           }
         >
-          {forkState === "forking" ? (
-            <Loader2 size={15} className="spin" />
-          ) : forkState === "copied" ? (
-            <Check size={15} />
-          ) : (
-            <GitFork size={15} />
-          )}
-        </button>
-
-        {speechAvailable && (
           <button
             type="button"
-            onClick={toggleMic}
-            disabled={disabled}
-            aria-label={listening ? "Stop recording" : "Start voice input"}
-            aria-pressed={listening}
+            onClick={handleFork}
+            disabled={disabled || forkState !== "idle"}
+            aria-label={
+              forkState === "forking"
+                ? "Forking…"
+                : forkState === "copied"
+                  ? "Fork URL copied"
+                  : "Fork to new URL"
+            }
             style={{
-              ...iconBtn({ active: listening }),
-              color: listening ? "#ff6b6b" : "rgba(255,255,255,0.75)",
+              ...iconBtn(),
+              color: forkState === "copied" ? "#8eff8e" : "rgba(255,255,255,0.75)",
             }}
-            title={listening ? "Recording — click to stop" : "Voice input"}
           >
-            {listening ? <Mic size={16} className="pulse" /> : <MicOff size={16} />}
+            {forkState === "forking" ? (
+              <Loader2 size={15} className="spin" />
+            ) : forkState === "copied" ? (
+              <Check size={15} />
+            ) : (
+              <GitFork size={15} />
+            )}
           </button>
+        </Tooltip>
+
+        {speechAvailable && (
+          <Tooltip label={listening ? "Recording · click to stop" : "Voice input"}>
+            <button
+              type="button"
+              onClick={toggleMic}
+              disabled={disabled}
+              aria-label={listening ? "Stop recording" : "Start voice input"}
+              aria-pressed={listening}
+              style={{
+                ...iconBtn({ active: listening }),
+                color: listening ? "#ff6b6b" : "rgba(255,255,255,0.75)",
+              }}
+            >
+              {listening ? <Mic size={16} className="pulse" /> : <MicOff size={16} />}
+            </button>
+          </Tooltip>
         )}
 
-        <button
-          type="submit"
-          disabled={disabled || !value.trim()}
-          style={{
-            border: "none",
-            borderRadius: 999,
-            background:
-              !value.trim() || disabled
-                ? "rgba(255,255,255,0.1)"
-                : "linear-gradient(135deg, #fff 0%, #d8d8d8 100%)",
-            color: !value.trim() || disabled ? "rgba(255,255,255,0.4)" : "#000",
-            width: 40,
-            height: 40,
-            cursor: disabled ? "not-allowed" : "pointer",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            transition: "all 120ms ease",
-            fontSize: 16,
-            marginLeft: 4,
-          }}
-          aria-label={
-            mode === "brainstorm" && writeup
-              ? "Build from brainstorm"
-              : disabled
-                ? "Generating"
-                : "Generate"
-          }
-          title={
+        <Tooltip
+          label={
             mode === "brainstorm" && writeup
               ? "Build from this brainstorm"
               : disabled
                 ? "Generating…"
-                : "Generate (Enter)"
+                : "Generate · Enter"
           }
         >
-          ↑
-        </button>
+          <button
+            type="submit"
+            disabled={disabled || !value.trim()}
+            style={{
+              border: "none",
+              borderRadius: 999,
+              background:
+                !value.trim() || disabled
+                  ? "rgba(255,255,255,0.1)"
+                  : "linear-gradient(135deg, #fff 0%, #d8d8d8 100%)",
+              color: !value.trim() || disabled ? "rgba(255,255,255,0.4)" : "#000",
+              width: 40,
+              height: 40,
+              cursor: disabled ? "not-allowed" : "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              transition: "all 120ms ease",
+              fontSize: 16,
+              marginLeft: 4,
+            }}
+            aria-label={
+              mode === "brainstorm" && writeup
+                ? "Build from brainstorm"
+                : disabled
+                  ? "Generating"
+                  : "Generate"
+            }
+          >
+            ↑
+          </button>
+        </Tooltip>
+        </div>
+        <div style={{ position: "relative" }}>
+          <textarea
+            ref={inputRef}
+            rows={1}
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (
+                e.key === "Enter" &&
+                !e.shiftKey &&
+                !e.nativeEvent.isComposing
+              ) {
+                e.preventDefault();
+                if (!disabled && value.trim()) submit();
+              }
+            }}
+            disabled={disabled}
+            style={{
+              display: "block",
+              width: "100%",
+              boxSizing: "border-box",
+              background: "transparent",
+              border: "none",
+              outline: "none",
+              color: "#fff",
+              fontSize: 15,
+              fontFamily: "ui-sans-serif, system-ui, sans-serif",
+              padding: "6px 10px",
+              letterSpacing: "-0.01em",
+              lineHeight: 1.4,
+              minWidth: 0,
+              maxHeight: 200,
+              resize: "none",
+              overflowY: "auto",
+              transition: "height 150ms ease",
+            }}
+          />
+          <div
+            aria-hidden="true"
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              padding: "6px 10px",
+              pointerEvents: "none",
+              color: "rgba(255,255,255,0.35)",
+              fontSize: 15,
+              fontFamily: "ui-sans-serif, system-ui, sans-serif",
+              letterSpacing: "-0.01em",
+              lineHeight: 1.4,
+              opacity: value.trim() === "" ? 1 : 0,
+              transform: value.trim() === "" ? "translateY(0)" : "translateY(-2px)",
+              transition: "opacity 150ms ease, transform 150ms ease",
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              userSelect: "none",
+            }}
+          >
+            {disabled
+              ? "Generating…"
+              : "Tell this page what to become. Try: a Tokyo coffee shop at 3am"}
+          </div>
+        </div>
       </form>
 
       {/* Methodology popup */}
@@ -846,42 +911,45 @@ export function PromptBar({
                   </div>
                 </button>
                 <div style={{ display: "flex", gap: 2, flexShrink: 0, marginLeft: 10 }}>
-                  <button
-                    type="button"
-                    onClick={() => doZip(snap.files, snapSummary, snap.id)}
-                    title="Download .zip"
-                    style={{
-                      width: 32, height: 32, border: "none", background: "transparent",
-                      color: "rgba(255,255,255,0.6)", cursor: "pointer", borderRadius: 4,
-                      display: "inline-flex", alignItems: "center", justifyContent: "center",
-                    }}
-                  >
-                    <FileArchive size={13} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => doHtml(snap.files, snapSummary, snap.id)}
-                    title="Download .html"
-                    style={{
-                      width: 32, height: 32, border: "none", background: "transparent",
-                      color: "rgba(255,255,255,0.6)", cursor: "pointer", borderRadius: 4,
-                      display: "inline-flex", alignItems: "center", justifyContent: "center",
-                    }}
-                  >
-                    <FileCode size={13} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => doCsb(snap.files, snapSummary, snap.id)}
-                    title="Copy CodeSandbox link"
-                    style={{
-                      width: 32, height: 32, border: "none", background: "transparent",
-                      color: "rgba(255,255,255,0.6)", cursor: "pointer", borderRadius: 4,
-                      display: "inline-flex", alignItems: "center", justifyContent: "center",
-                    }}
-                  >
-                    <LinkIcon size={13} />
-                  </button>
+                  <Tooltip label="Download .zip">
+                    <button
+                      type="button"
+                      onClick={() => doZip(snap.files, snapSummary, snap.id)}
+                      style={{
+                        width: 32, height: 32, border: "none", background: "transparent",
+                        color: "rgba(255,255,255,0.6)", cursor: "pointer", borderRadius: 4,
+                        display: "inline-flex", alignItems: "center", justifyContent: "center",
+                      }}
+                    >
+                      <FileArchive size={13} />
+                    </button>
+                  </Tooltip>
+                  <Tooltip label="Download .html">
+                    <button
+                      type="button"
+                      onClick={() => doHtml(snap.files, snapSummary, snap.id)}
+                      style={{
+                        width: 32, height: 32, border: "none", background: "transparent",
+                        color: "rgba(255,255,255,0.6)", cursor: "pointer", borderRadius: 4,
+                        display: "inline-flex", alignItems: "center", justifyContent: "center",
+                      }}
+                    >
+                      <FileCode size={13} />
+                    </button>
+                  </Tooltip>
+                  <Tooltip label="Copy CodeSandbox link">
+                    <button
+                      type="button"
+                      onClick={() => doCsb(snap.files, snapSummary, snap.id)}
+                      style={{
+                        width: 32, height: 32, border: "none", background: "transparent",
+                        color: "rgba(255,255,255,0.6)", cursor: "pointer", borderRadius: 4,
+                        display: "inline-flex", alignItems: "center", justifyContent: "center",
+                      }}
+                    >
+                      <LinkIcon size={13} />
+                    </button>
+                  </Tooltip>
                 </div>
               </div>
             );
